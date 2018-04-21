@@ -4,7 +4,7 @@
 cmake_minimum_required (VERSION 3.8)
 
 # Add source to this project's executable.
-# project(gen16x)
+project(gen16x)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,7 +27,7 @@ find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS})
 
 
-add_executable (gen16x "gen16x.cpp" "gen16x.h")
+add_executable (gen16x "gen16x.cpp" "gen16x.h" "shaders.h" "main.cpp")
 
 target_link_libraries(gen16x ${SDL2_LIBRARIES})
 #target_link_libraries(gen16x ${GLEW_LIBRARIES})
@@ -55,8 +55,7 @@ target_link_libraries(gen16x ${SDL2_LIBRARIES})
   target_link_libraries(gen16x ${GLEW})
 
 if(UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -msse2")
     find_package(OpenGL REQUIRED)
     target_link_libraries(gen16x ${OPENGL_LIBRARIES})
     add_definitions(-DENABLE_SSE2=1)

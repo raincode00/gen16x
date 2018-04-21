@@ -93,15 +93,18 @@ struct gen16x_ppu_layer_header {
     unsigned int vram_offset;
 };
 
+typedef void(*gen16x_ppu_row_callback_t)(unsigned int);
 
 struct gen16x_ppu_state {
-    
     unsigned short screen_width;
     unsigned short screen_height;
+    gen16x_ppu_row_callback_t row_callback;
     gen16x_ppu_layer_header layers[6];
     unsigned int framebuffer_offset;
     gen16x_color32 cgram32[256];
-    unsigned char vram[512*512*4 - (2 + 2 + sizeof(gen16x_ppu_layer_header)*6 + 4 + 4*256)];
+    unsigned char vram[512*512*4 - (2 + 2 + sizeof(gen16x_ppu_row_callback_t) + sizeof(gen16x_ppu_layer_header)*6 + 4 + 4*256)];
     
 };
 
+
+void gen16x_ppu_render(gen16x_ppu_state* ppu);
