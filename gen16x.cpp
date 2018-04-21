@@ -620,7 +620,7 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 
-    g_window = SDL_CreateWindow("gen16x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, g_ppu_state.screen_width*2, g_ppu_state.screen_height*2, SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI);
+    g_window = SDL_CreateWindow("gen16x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, g_ppu_state.screen_width, g_ppu_state.screen_height, SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI);
 
     SDL_SetWindowResizable(g_window, SDL_TRUE);
     
@@ -728,8 +728,13 @@ int main() {
 
     glProgramUniform1i(program, texture_uni, 0);
     glProgramUniform2f(program, texture_size_uni, g_ppu_state.screen_width, g_ppu_state.screen_height);
-    
-    SDL_SetWindowSize(g_window, g_ppu_state.screen_width*2, g_ppu_state.screen_height*2);
+    int draw_w;
+    int draw_h;
+
+    SDL_GL_GetDrawableSize(g_window, &draw_w, &draw_h);
+    glProgramUniform2f(program, display_size_uni, (float)draw_w, (float)draw_h);
+    glViewport(0, 0, draw_w, draw_h);
+    //SDL_SetWindowSize(g_window, g_ppu_state.screen_width, g_ppu_state.screen_height);
     
     
     player.pos_x = 0;
@@ -910,6 +915,7 @@ int main() {
     SDL_DelEventWatch(watch, NULL);
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(g_window);
+
     SDL_Quit();
 
 	return 0;
