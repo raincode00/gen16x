@@ -640,10 +640,10 @@ int main() {
     SDL_AddEventWatch(watch, NULL);
     double frame_no = 0.0;
     Timer timer;
-
+    glEnable(GL_FRAMEBUFFER_SRGB);
     uint32_t framebuffer_texture;
     glGenTextures(1, &framebuffer_texture);
-
+    
     glBindTexture(GL_TEXTURE_2D, framebuffer_texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -880,7 +880,7 @@ int main() {
 
         render();
         
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_ppu_state.screen_width, g_ppu_state.screen_height, 0, GL_BGRA, GL_UNSIGNED_BYTE, g_ppu_state.vram + g_ppu_state.framebuffer_offset);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, g_ppu_state.screen_width, g_ppu_state.screen_height, 0, GL_BGRA, GL_UNSIGNED_BYTE, g_ppu_state.vram + g_ppu_state.framebuffer_offset);
         int err = glGetError();
         if (err) {
             printf("OpenGL Error - %d\n", err);
@@ -888,12 +888,12 @@ int main() {
         }
 
 
-     
+        
         glClear(GL_COLOR_BUFFER_BIT);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 8);
 
         
-        if (timer.elapsed() >= 1.0/60.0f && frame_no > 0.0) {
+        if (timer.elapsed() >= 1.0 && frame_no > 0.0) {
             char fps_text[32];
             delta_time = (float)(timer.elapsed() / frame_no);
             sprintf(fps_text, "FPS: %0.2f\n", frame_no / timer.elapsed());
