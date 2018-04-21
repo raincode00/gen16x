@@ -620,7 +620,7 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 
-    g_window = SDL_CreateWindow("gen16x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, g_ppu_state.screen_width, g_ppu_state.screen_height, SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI);
+    g_window = SDL_CreateWindow("gen16x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, g_ppu_state.screen_width, g_ppu_state.screen_height, SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_RESIZABLE);
 
     SDL_SetWindowResizable(g_window, SDL_TRUE);
     
@@ -630,17 +630,20 @@ int main() {
     
     SDL_GL_SetSwapInterval(0);
 
+    glewExperimental = GL_TRUE; 
     GLenum err = glewInit();
     if (GLEW_OK != err) {
         printf("Error: %s\n", glewGetErrorString(err));
     }
-    
+    glGetError();
     printf("Status: Using OpenGL %s\n", glGetString(GL_VERSION));
 
     SDL_AddEventWatch(watch, NULL);
     double frame_no = 0.0;
     Timer timer;
+
     glEnable(GL_FRAMEBUFFER_SRGB);
+
     uint32_t framebuffer_texture;
     glGenTextures(1, &framebuffer_texture);
     
@@ -669,6 +672,11 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
     
+    err = glGetError();
+	if (err) {
+		printf("OpenGL Error 1 - %d\n", err);
+		quitting = true;
+	}
 
     
     uint32_t program = glCreateProgram();
@@ -721,7 +729,7 @@ int main() {
     
     err = glGetError();
     if (err) {
-        printf("OpenGL Error - %d\n", err);
+        printf("OpenGL Error 2 - %d\n", err);
         quitting = true;
     }
 
@@ -802,13 +810,13 @@ int main() {
                         glViewport(offset_w*dpi_scale_w, offset_h*dpi_scale_h, vp_width*dpi_scale_w, vp_height*dpi_scale_h);
 
                         Uint32 flags = SDL_GetWindowFlags(g_window);
-                        if (!(flags & (SDL_WINDOW_FULLSCREEN|SDL_WINDOW_MAXIMIZED))) {
+                        /*if (!(flags & (SDL_WINDOW_FULLSCREEN|SDL_WINDOW_MAXIMIZED))) {
                             if (offset_w != 0 || offset_h != 0) {
                                 SDL_SetWindowSize(g_window, vp_width, vp_height);
                                 glViewport(0, 0, vp_width*dpi_scale_w, vp_height*dpi_scale_h);
                             }
                             
-                        }
+                        }*/
                         printf("Window resized to: %d x %d\n", vp_width, vp_height);
                         break;
                     }
@@ -881,7 +889,7 @@ int main() {
         render();
         
         glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, g_ppu_state.screen_width, g_ppu_state.screen_height, 0, GL_BGRA, GL_UNSIGNED_BYTE, g_ppu_state.vram + g_ppu_state.framebuffer_offset);
-        int err = glGetError();
+        err = glGetError();
         if (err) {
             printf("OpenGL Error - %d\n", err);
             quitting = true;
