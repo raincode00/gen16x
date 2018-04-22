@@ -99,6 +99,7 @@ uint64_t font_8x8[128] = {
 
 
 #include "assets/test_sprite_tiles.h"
+#include "assets/test_sprite_tiles2.h"
 
 const unsigned char test_tileset[256*256] = {
 #include "assets/test_tileset.txt"
@@ -256,41 +257,64 @@ void init_ppu() {
 
 
     memcpy(sprites_layer.sprite_palette, test_sprite_tiles, sizeof(test_sprite_tiles));
+    memcpy(sprites_layer.sprite_palette + sizeof(test_sprite_tiles), test_sprite2_tiles, sizeof(test_sprite2_tiles));
     for (int i = 0; i < 15; i++) {
         app.ppu.cgram32[220 + i].color_i = test_sprite_palette[i];
-        sprites_layer.sprites[0].color_palette[i] = 220 + i;
-        sprites_layer.sprites[1].color_palette[i] = 220 + i;
-        sprites_layer.sprites[2].color_palette[i] = 220 + i;
-        sprites_layer.sprites[3].color_palette[i] = 220 + i;
+    }
+    for (int i = 0; i < 11; i++) {
+        app.ppu.cgram32[235 + i].color_i = test_sprite2_palette[i];
     }
 
+    sprites_layer.sprites[0].palette_offset = 220;
     sprites_layer.sprites[0].flags = GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[0].size = 5;
+    sprites_layer.sprites[0].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
     sprites_layer.sprites[0].tile_index = 0;
     sprites_layer.sprites[0].x = app.ppu.screen_width/2 - 16;
     sprites_layer.sprites[0].y = 80;
 
-
+    sprites_layer.sprites[1].palette_offset = 220;
     sprites_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[1].size = 5;
+    sprites_layer.sprites[1].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
     sprites_layer.sprites[1].tile_index = (4 * 4)*0;
     sprites_layer.sprites[1].x = 32;
     sprites_layer.sprites[1].y = 32;
 
-
+    sprites_layer.sprites[2].palette_offset = 220;
     sprites_layer.sprites[2].flags =  GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[2].size = 5;
+    sprites_layer.sprites[2].size = GEN16X_MAKE_SPRITE_SIZE(5,5);
     sprites_layer.sprites[2].tile_index = (4 * 4)*6;
     sprites_layer.sprites[2].x = 47;
     sprites_layer.sprites[2].y = 65;
 
+    sprites_layer.sprites[3].palette_offset = 220;
     sprites_layer.sprites[3].flags = GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[3].size = 5;
+    sprites_layer.sprites[3].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
     sprites_layer.sprites[3].tile_index = (4 * 4)*10;
     sprites_layer.sprites[3].x = 64 + 16;
     sprites_layer.sprites[3].y = 180;
 
 
+    sprites_layer.sprites[4].palette_offset = 235;
+    sprites_layer.sprites[4].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    sprites_layer.sprites[4].size = GEN16X_MAKE_SPRITE_SIZE(4, 4);
+    sprites_layer.sprites[4].tile_index = sizeof(test_sprite_tiles) / 32;
+    sprites_layer.sprites[4].x = 64 + 16;
+    sprites_layer.sprites[4].y = 180;
+    
+
+
+    for (int i = 5; i < 16; i++) {
+
+
+        sprites_layer.sprites[i].palette_offset = 235;
+        sprites_layer.sprites[i].flags = GEN16X_FLAG_SPRITE_ENABLED;
+        sprites_layer.sprites[i].size = GEN16X_MAKE_SPRITE_SIZE(4, 4);
+        sprites_layer.sprites[i].tile_index = (sizeof(test_sprite_tiles) / 32)  + (2 * 2) * (i % 16);
+        sprites_layer.sprites[i].x = ((i % 32) * 10);
+        sprites_layer.sprites[i].y = 32 + ((i / 32) * 128) + 10*(i%7)*(i%3);
+
+    }
+    
 
     offset += (sizeof(gen16x_ppu_layer_sprites));
 

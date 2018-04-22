@@ -19,13 +19,21 @@
 #define GEN16X_FLAG_CLAMP_Y         0b00000100
 #define GEN16X_FLAG_REPEAT_X        0b00001000
 #define GEN16X_FLAG_REPEAT_Y        0b00010000
-#define GEN16X_FLAG_SPRITE_ENABLED  0b00000001
+
+#define GEN16X_FLAG_SPRITE_ENABLED  0b10000000
+#define GEN16X_FLAG_SPRITE_VFLIP    0b01000000
+#define GEN16X_FLAG_SPRITE_HFLIP    0b00100000
+
+
+#define GEN16X_SPRITE_WIDTH_MASK    0b00001111
+#define GEN16X_SPRITE_HEIGHT_MASK   0b11110000
 
 #define GEN16X_MAX_SCREEN_HEIGHT    256
 #define GEN16X_MAX_SCREEN_WIDTH     512
 #define GEN16X_MAX_SPRITES          256
-#define GEN16X_MAX_SPRITES_PER_ROW  15
+#define GEN16X_MAX_SPRITES_PER_ROW  32
 
+#define GEN16X_MAKE_SPRITE_SIZE(w, h)   (((w) & GEN16X_SPRITE_WIDTH_MASK) | ((h) << 4))
 
 
 struct gen16x_color32 {
@@ -70,13 +78,15 @@ struct gen16x_ppu_layer_tiles {
 };
 
 struct gen16x_ppu_sprite {
-    unsigned char size;
-    unsigned char flags;
     short x;
     short y;
+    unsigned char flags;
+    unsigned char priority;
+    unsigned char size;
+    unsigned char palette_offset;
     unsigned short tile_index;
-    unsigned char color_palette[16];
-}; //24 bytes
+    
+}; //10 bytes
 
 struct gen16x_ppu_layer_sprites {
     gen16x_ppu_sprite sprites[GEN16X_MAX_SPRITES];
@@ -107,7 +117,7 @@ struct gen16x_ppu_state {
     gen16x_ppu_layer_header layers[6];
     unsigned int framebuffer_offset;
     gen16x_color32 cgram32[256];
-    unsigned char vram[512*512*4 - (2 + 2 + sizeof(gen16x_ppu_row_callback_t) + sizeof(gen16x_ppu_layer_header)*6 + 4 + 4*256)];
+    unsigned char vram[512*512*4];
 };
 
 void gen16x_ppu_render(gen16x_ppu_state* ppu);

@@ -2,11 +2,11 @@ import math
 import struct
 from PIL import Image
 
-name = "test_sprite"
+name = "test_sprite2"
 im = Image.open(name + ".bmp")
 
 #print im.palette.palette
-sprite_size = 32
+sprite_size = 16
 
 sprites = []
 
@@ -51,14 +51,18 @@ for s0 in xrange(0, len(sprites)):
 		print "        " + "".join(["0x{0:0{1}X},".format(x, 2) for x in sprites[s0][s1]])
 
 		for s2 in xrange(0, len(sprites[s0][s1])):
-			x = (8*(s1%4)) + 2*(s2 % 4)
-			y = s0*sprite_size + (8*(s1//4)) + (s2 // 4)
+			subx = s1 % (sprite_size//8)
+			suby = s1 // (sprite_size//8)
+			subx0 = ((s2*2) % 8)
+			suby0 = ((s2*2) // 8)
+			x = subx*8 + subx0
+			y = s0*sprite_size + suby*8 + suby0
 			index = sprites[s0][s1][s2]
-			#color = (ord(im.palette.palette[index*4 + 2]),ord(im.palette.palette[index*4 + 1]),ord(im.palette.palette[index*4]))
 			color1 = (index&0x0F)
 			color0 = (index&0xF0) >> 4
-			pixels[x, y] = (7*(8*(s1%4)) ,7*(8*(s1/4)), 0)
-			pixels[x+1, y] = (7*(8*(s1%4)) ,7*(8*(s1/4)), 0)
+			#print s0, s1, s2,":", subx0, suby0, ":", x, y
+			pixels[x, y] = (ord(im.palette.palette[color0*4 + 2]),ord(im.palette.palette[color0*4 + 1]),ord(im.palette.palette[color0*4]))
+			pixels[x+1, y] = (ord(im.palette.palette[color1*4 + 2]),ord(im.palette.palette[color1*4 + 1]),ord(im.palette.palette[color1*4]))
 	#tmp_y += sprite_size
 
 
