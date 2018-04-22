@@ -268,7 +268,7 @@ void init_ppu() {
     sprites_layer.sprites[0].size = 5;
     sprites_layer.sprites[0].tile_index = 0;
     sprites_layer.sprites[0].x = app.ppu.screen_width/2 - 16;
-    sprites_layer.sprites[0].y = app.ppu.screen_height - 48;
+    sprites_layer.sprites[0].y = 80;
 
 
     sprites_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
@@ -278,17 +278,17 @@ void init_ppu() {
     sprites_layer.sprites[1].y = 32;
 
 
-    sprites_layer.sprites[2].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    sprites_layer.sprites[2].flags =  GEN16X_FLAG_SPRITE_ENABLED;
     sprites_layer.sprites[2].size = 5;
     sprites_layer.sprites[2].tile_index = (4 * 4)*6;
-    sprites_layer.sprites[2].x = 64;
-    sprites_layer.sprites[2].y = 32;
+    sprites_layer.sprites[2].x = 47;
+    sprites_layer.sprites[2].y = 65;
 
     sprites_layer.sprites[3].flags = GEN16X_FLAG_SPRITE_ENABLED;
     sprites_layer.sprites[3].size = 5;
     sprites_layer.sprites[3].tile_index = (4 * 4)*10;
     sprites_layer.sprites[3].x = 64 + 16;
-    sprites_layer.sprites[3].y = 32;
+    sprites_layer.sprites[3].y = 180;
 
 
 
@@ -300,6 +300,13 @@ void init_ppu() {
         if (y > 16) {
             app.ppu.layers[2].layer_type = GEN16X_LAYER_PASS;
         }
+        static int z = 0;
+        z += 1;
+        gen16x_ppu_layer_sprites& sprites_layer = *(gen16x_ppu_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
+
+        //sprites_layer.sprites[1].x = 100 + sinf(y/7.0f)*(app.ppu.screen_height - y)/5.0f;
+        //sprites_layer.sprites[1].y = (sprites_layer.sprites[1].y/4 - y) + cosf(y / 7.0f)*5;
+
         int h = y - 80;
         
         if (h > 0) {
@@ -329,6 +336,10 @@ void init_ppu() {
             layer_tiles->transform.y =  (int)(player.pos_y - 0*f_y*lambda);
             layer_tiles->transform.cx = (int)(player.pos_x - 0*f_x*lambda + app.ppu.screen_width / 2);
             layer_tiles->transform.cy = (int)(player.pos_y - 0*f_y*lambda + app.ppu.screen_height - 16);
+
+            
+
+
             
         }
     };
@@ -709,7 +720,12 @@ int main() {
         frame_no++;
         sprites_layer.sprites[0].tile_index = 16*(int(frame_no/100.0)%20);
 
-        
+        //sprites_layer.sprites[1].tile_index = 16 * ((int(frame_no / 100.0) + 3)  % 20);
+        sprites_layer.sprites[2].tile_index = 16 * ((int(frame_no / 500.0) + 6) % 20);
+        sprites_layer.sprites[3].tile_index = 16 * ((int(frame_no / 500.0) + 9) % 20);
+
+        sprites_layer.sprites[1].x = -16 + app.ppu.screen_width / 2 + cosf(-frame_no / 5000.0f)*app.ppu.screen_width / 2;
+        sprites_layer.sprites[1].y = -16 + app.ppu.screen_height / 2 + sinf(-frame_no / 5000.0f)*app.ppu.screen_height / 2;
         //layer_tiles->transform.base = 12;
         
         

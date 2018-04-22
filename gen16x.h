@@ -21,6 +21,13 @@
 #define GEN16X_FLAG_REPEAT_Y        0b00010000
 #define GEN16X_FLAG_SPRITE_ENABLED  0b00000001
 
+#define GEN16X_MAX_SCREEN_HEIGHT    256
+#define GEN16X_MAX_SCREEN_WIDTH     512
+#define GEN16X_MAX_SPRITES          256
+#define GEN16X_MAX_SPRITES_PER_ROW  15
+
+
+
 struct gen16x_color32 {
     union {
         unsigned int color_i;
@@ -72,7 +79,7 @@ struct gen16x_ppu_sprite {
 }; //24 bytes
 
 struct gen16x_ppu_layer_sprites {
-    gen16x_ppu_sprite sprites[128];
+    gen16x_ppu_sprite sprites[GEN16X_MAX_SPRITES];
     unsigned char sprite_palette[1024*128];  // holds 1024 16x16 sprites or 4096 8x8 sprites
 };
 

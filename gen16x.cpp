@@ -5,6 +5,13 @@ inline int clamp0(int x, int b) {
     return x;
 }
 
+inline bool in_range(int x, int low, int high) {
+    return ((x - high)*(x - low) <= 0);
+}
+
+inline bool out_of_range(int x, int low, int high) {
+    return ((x - high)*(x - low) > 0);
+}
 unsigned short argb32_to_argb16(gen16x_color32 c) {
     c.a = c.a >> 7;
     c.r = c.r >> 3;
@@ -232,19 +239,17 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
     }
 }
 
-void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
+
+void bin_sprites(gen16x_ppu_state* ppu, unsigned char* sprite_bins, int layer_index) {
     auto &layer = ppu->layers[layer_index];
     gen16x_ppu_layer_sprites* layer_sprites = (gen16x_ppu_layer_sprites*)(ppu->vram + layer.vram_offset);
 
-    int blendmode = layer.blend_mode;
+    const int num_bins = GEN16X_MAX_SCREEN_HEIGHT;
+    const int sprites_per_bin = GEN16X_MAX_SPRITES_PER_ROW;
+    const int bin_length = (sprites_per_bin + 1);
 
-    
-    const int num_bins = 256;
-    const int sprites_per_bin = 16;
-    char sprite_bins[num_bins][sprites_per_bin + 1] = {0};
-    
 
-    for (int s = 0; s < 128; s++) {
+    for (int s = 0; s < GEN16X_MAX_SPRITES; s++) {
         gen16x_ppu_sprite& sprite = layer_sprites->sprites[s];
         int s_x = sprite.x;
         int s_y = sprite.y;
@@ -252,65 +257,94 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
         if (!(sprite.flags & (GEN16X_FLAG_SPRITE_ENABLED))) {
             continue;
         }
-        if ((s_y + s_s < 0) || (s_y >= ppu->screen_height)
-            || (s_x + s_s < col_start) || (s_x >= col_end)) {
+        if ((s_y > ppu->screen_height) || (s_y + s_s < 0)) {
+            continue;
+        }
+        if ((s_x > ppu->screen_width) || (s_x + s_s < 0)) {
             continue;
         }
 
+        int start_bin = s_y;
+        
+        if (start_bin < 0) {
+            start_bin = 0;
+        }
+        int end_bin = s_y + s_s;
+        if (end_bin > ppu->screen_height) {
+            end_bin = ppu->screen_height;
+        }
 
-        for (int b = s_y; b < num_bins && b < s_y + s_s; ++b) {
-            if (sprite_bins[b][0] < sprites_per_bin) {
-                sprite_bins[b][++sprite_bins[b][0]] = (char)s;
+        for (int b = start_bin; b < end_bin; ++b) {
+            int bin_row = b * bin_length;
+            if (sprite_bins[bin_row] < sprites_per_bin) {
+                sprite_bins[bin_row + (++sprite_bins[bin_row])] = (char)s;
             }
         }
 
     }
+}
+void render_row_sprites(gen16x_ppu_state* ppu, unsigned char* sprite_bins, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
+    auto &layer = ppu->layers[layer_index];
+    gen16x_ppu_layer_sprites* layer_sprites = (gen16x_ppu_layer_sprites*)(ppu->vram + layer.vram_offset);
 
+    int blendmode = layer.blend_mode;
+
+ 
     int row_bin = row_index;
 
-    int n_sprites = sprite_bins[row_bin][0];
+    const int bin_length = (GEN16X_MAX_SPRITES_PER_ROW + 1);
+    int n_sprites = sprite_bins[row_bin*bin_length];
     for (int c = 0; c < n_sprites; c++) {
-        int sprite_index = sprite_bins[row_bin][c + 1];
+        int sprite_index = sprite_bins[row_bin*bin_length + 1 + c];
         gen16x_ppu_sprite& sprite = layer_sprites->sprites[sprite_index];
         int sprite_size = 1 << sprite.size;
         int start = sprite.x;
-        if (col_start > start) {
-            start = col_start;
+        if (start < col_start) {
+            start = col_start + int(sprite.x % 2);
         }
+        //int start_sub = start - 
         int end = sprite.x + sprite_size;
-        if (col_end < end) {
+        if (end > col_end) {
             end = col_end;
         }
-        int y0 = (row_index - sprite.y);
-        int s_sub_y = y0 >> 3;
+        int y0 = clamp0(row_index - sprite.y, sprite_size);
+        int s_sub_mask = ((1 << (8 - sprite.size)) - 1);
+        int s_sub_y = (y0 >> 3) & s_sub_mask;
         int s_sub_y0 = y0 & 7;
         
-        for (int x = start; x < end; x+=2) {
-            int x0 = (x - start);
-            int s_sub_x = (x0 >> 3);
+        for (int x = start; x < end; x += 2) {
+            int x0 = (x - sprite.x);
+            int s_sub_x = (x0 >> 3) & s_sub_mask;
             int s_sub_x0 = (x0 & 0x7);
             int s_sub_index = ((s_sub_y << (sprite.size - 3)) + s_sub_x);
-            unsigned int s_offset = (sprite.tile_index*64) + 
-                                  s_sub_index*64
-                                  + s_sub_y0*8
-                                  + (s_sub_x0);
+            int s_offset = (sprite.tile_index << 6) + (s_sub_index << 6) + (s_sub_y0 << 3) + (s_sub_x0);
 
             unsigned int sprite_color = (int)layer_sprites->sprite_palette[s_offset >> 1];
             unsigned int sprite_color0 = sprite_color >> 4;
             unsigned int sprite_color1 = sprite_color & 0xF;
-            gen16x_color32 debug_color;
-            debug_color.r = s_sub_index * 16;
-            debug_color.g = s_sub_index * 16;
-            debug_color.b = 0;
-            debug_color.a = 255;
-            //write_pixel(blendmode, debug_color, *((gen16x_color32*)&row_pixels[x]));
-            write_pixel(blendmode, ppu->cgram32[sprite.color_palette[sprite_color0]], *((gen16x_color32*)&row_pixels[x]));
-            write_pixel(blendmode, ppu->cgram32[sprite.color_palette[sprite_color1]], *((gen16x_color32*)&row_pixels[x + 1]));
+            if (x >= col_start) {
+                write_pixel(blendmode, ppu->cgram32[sprite.color_palette[sprite_color0]], *((gen16x_color32*)&row_pixels[x]));
+            }
+            if (x + 1 < col_end) {
+                write_pixel(blendmode, ppu->cgram32[sprite.color_palette[sprite_color1]], *((gen16x_color32*)&row_pixels[x + 1]));
+            }
         }
     }
 }
 void gen16x_ppu_render(gen16x_ppu_state* ppu) {
 
+    const int bin_size = (GEN16X_MAX_SCREEN_HEIGHT)*(GEN16X_MAX_SPRITES_PER_ROW + 1);
+    unsigned char sprite_bins[6][bin_size] = { 0 };
+    for (int l = 0; l < 6; l++) {
+        switch (ppu->layers[l].layer_type) {
+        case GEN16X_LAYER_SPRITES:
+            bin_sprites(ppu, sprite_bins[l], l);
+            break;
+        }
+
+    }
+
+    
     for (int y = 0; y < ppu->screen_height; ++y) {
         if (ppu->row_callback) {
             ppu->row_callback(y);
@@ -336,7 +370,7 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
                 break;
             }
             case GEN16X_LAYER_SPRITES:
-                render_row_sprites(ppu, l, y, 0, ppu->screen_width, row_pixels);
+                render_row_sprites(ppu, sprite_bins[l], l, y, 0, ppu->screen_width, row_pixels);
                 break;
             }
         }
