@@ -248,6 +248,54 @@ void init_ppu() {
     offset += (sizeof(gen16x_ppu_layer_tiles));
     
     
+
+    app.ppu.layers[3].layer_type = GEN16X_LAYER_SPRITES;
+    app.ppu.layers[3].vram_offset = offset;
+
+    gen16x_ppu_layer_sprites& sprites_layer = *(gen16x_ppu_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
+
+
+    memcpy(sprites_layer.sprite_palette, test_sprite_tiles, sizeof(test_sprite_tiles));
+    for (int i = 0; i < 15; i++) {
+        app.ppu.cgram32[220 + i].color_i = test_sprite_palette[i];
+        sprites_layer.sprites[0].color_palette[i] = 220 + i;
+        sprites_layer.sprites[1].color_palette[i] = 220 + i;
+        sprites_layer.sprites[2].color_palette[i] = 220 + i;
+        sprites_layer.sprites[3].color_palette[i] = 220 + i;
+    }
+
+    sprites_layer.sprites[0].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    sprites_layer.sprites[0].size = 5;
+    sprites_layer.sprites[0].tile_index = 0;
+    sprites_layer.sprites[0].x = app.ppu.screen_width/2 - 16;
+    sprites_layer.sprites[0].y = app.ppu.screen_height - 48;
+
+
+    sprites_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    sprites_layer.sprites[1].size = 5;
+    sprites_layer.sprites[1].tile_index = (4 * 4)*0;
+    sprites_layer.sprites[1].x = 32;
+    sprites_layer.sprites[1].y = 32;
+
+
+    sprites_layer.sprites[2].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    sprites_layer.sprites[2].size = 5;
+    sprites_layer.sprites[2].tile_index = (4 * 4)*6;
+    sprites_layer.sprites[2].x = 64;
+    sprites_layer.sprites[2].y = 32;
+
+    sprites_layer.sprites[3].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    sprites_layer.sprites[3].size = 5;
+    sprites_layer.sprites[3].tile_index = (4 * 4)*10;
+    sprites_layer.sprites[3].x = 64 + 16;
+    sprites_layer.sprites[3].y = 32;
+
+
+
+    offset += (sizeof(gen16x_ppu_layer_sprites));
+
+
+
     app.ppu.row_callback = (gen16x_ppu_row_callback_t)[](unsigned int y) {
         if (y > 16) {
             app.ppu.layers[2].layer_type = GEN16X_LAYER_PASS;
@@ -652,6 +700,15 @@ int main() {
         app.ppu.layers[0].layer_type = GEN16X_LAYER_DIRECT;
         app.ppu.layers[1].layer_type = GEN16X_LAYER_PASS;
         app.ppu.layers[2].layer_type = GEN16X_LAYER_TILES;
+
+
+        gen16x_ppu_layer_sprites& sprites_layer = *(gen16x_ppu_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
+
+        static int frame_no = 0;
+
+        frame_no++;
+        sprites_layer.sprites[0].tile_index = 16*(int(frame_no/100.0)%20);
+
         
         //layer_tiles->transform.base = 12;
         

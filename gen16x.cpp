@@ -249,9 +249,11 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
         int s_x = sprite.x;
         int s_y = sprite.y;
         int s_s = 1 << sprite.size;
-
+        if (!(sprite.flags & (GEN16X_FLAG_SPRITE_ENABLED))) {
+            continue;
+        }
         if ((s_y + s_s < 0) || (s_y >= ppu->screen_height)
-            || (s_x + s_s < col_start) || (s_x >= col_start)) {
+            || (s_x + s_s < col_start) || (s_x >= col_end)) {
             continue;
         }
 
@@ -264,7 +266,7 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
 
     }
 
-    int row_bin = (row_index >> 5) & 0xF;
+    int row_bin = row_index;
 
     int n_sprites = sprite_bins[row_bin][0];
     for (int c = 0; c < n_sprites; c++) {
@@ -281,23 +283,29 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
         }
         int y0 = (row_index - sprite.y);
         int s_sub_y = y0 >> 3;
-        int s_sub_y0 = y0 & 0x7;
+        int s_sub_y0 = y0 & 7;
         
-        for (int x = start; x < end; ++x) {
-            int x0 = x - start;
-            int s_sub_x = x0 >> 3;
-            int s_sub_x0 = x0 & 0x7;
-            int s_sub_offset = (s_sub_y << sprite.size) + s_sub_x;
-            unsigned int s_offset = (sprite.tile_index << 5) 
-                                  + (s_sub_offset << (sprite.size - 3))
-                                  + (s_sub_y0 << sprite.size)
+        for (int x = start; x < end; x+=2) {
+            int x0 = (x - start);
+            int s_sub_x = (x0 >> 3);
+            int s_sub_x0 = (x0 & 0x7);
+            int s_sub_index = ((s_sub_y << (sprite.size - 3)) + s_sub_x);
+            unsigned int s_offset = (sprite.tile_index*64) + 
+                                  s_sub_index*64
+                                  + s_sub_y0*8
                                   + (s_sub_x0);
 
             unsigned int sprite_color = (int)layer_sprites->sprite_palette[s_offset >> 1];
-            unsigned int mask_shift = (s_offset & 0x1);
-            unsigned int mask = 0xF << mask_shift;
-            sprite_color = (sprite_color & mask) >> mask_shift;
-            write_pixel(blendmode, ppu->cgram32[sprite.color_palette[sprite_color]], *((gen16x_color32*)&row_pixels[x]));
+            unsigned int sprite_color0 = sprite_color >> 4;
+            unsigned int sprite_color1 = sprite_color & 0xF;
+            gen16x_color32 debug_color;
+            debug_color.r = s_sub_index * 16;
+            debug_color.g = s_sub_index * 16;
+            debug_color.b = 0;
+            debug_color.a = 255;
+            //write_pixel(blendmode, debug_color, *((gen16x_color32*)&row_pixels[x]));
+            write_pixel(blendmode, ppu->cgram32[sprite.color_palette[sprite_color0]], *((gen16x_color32*)&row_pixels[x]));
+            write_pixel(blendmode, ppu->cgram32[sprite.color_palette[sprite_color1]], *((gen16x_color32*)&row_pixels[x + 1]));
         }
     }
 }
@@ -327,6 +335,9 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
                 }
                 break;
             }
+            case GEN16X_LAYER_SPRITES:
+                render_row_sprites(ppu, l, y, 0, ppu->screen_width, row_pixels);
+                break;
             }
         }
     }

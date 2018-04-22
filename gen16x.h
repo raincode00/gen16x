@@ -19,6 +19,7 @@
 #define GEN16X_FLAG_CLAMP_Y         0b00000100
 #define GEN16X_FLAG_REPEAT_X        0b00001000
 #define GEN16X_FLAG_REPEAT_Y        0b00010000
+#define GEN16X_FLAG_SPRITE_ENABLED  0b00000001
 
 struct gen16x_color32 {
     union {
@@ -72,7 +73,7 @@ struct gen16x_ppu_sprite {
 
 struct gen16x_ppu_layer_sprites {
     gen16x_ppu_sprite sprites[128];
-    unsigned char sprite_palette[512*128];  // holds 512 16x16 sprites or 2048 8x8 sprites
+    unsigned char sprite_palette[1024*128];  // holds 1024 16x16 sprites or 4096 8x8 sprites
 };
 
 struct gen16x_ppu_layer_direct {

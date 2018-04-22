@@ -57,8 +57,8 @@ for s0 in xrange(0, len(sprites)):
 			#color = (ord(im.palette.palette[index*4 + 2]),ord(im.palette.palette[index*4 + 1]),ord(im.palette.palette[index*4]))
 			color1 = (index&0x0F)
 			color0 = (index&0xF0) >> 4
-			pixels[x, y] = (color0*16, color0*16, color0*16)
-			pixels[x+1, y] = (color1*16, color1*16, color1*16)
+			pixels[x, y] = (7*(8*(s1%4)) ,7*(8*(s1/4)), 0)
+			pixels[x+1, y] = (7*(8*(s1%4)) ,7*(8*(s1/4)), 0)
 	#tmp_y += sprite_size
 
 
