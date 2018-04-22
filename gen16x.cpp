@@ -1,15 +1,9 @@
-// gen16x.cpp : Defines the entry point for the application.
-//
-
 #include "gen16x.h"
-
-
 
 inline int clamp0(int x, int b) {
     x = x < 0 ? 0 : (x > b ? b : x);
     return x;
 }
-
 
 unsigned short argb32_to_argb16(gen16x_color32 c) {
     c.a = c.a >> 7;
@@ -31,7 +25,6 @@ gen16x_color32 argb16_to_argb32(unsigned short c) {
     c32.b = ((c & bmask) << 3) | 0x7;
     return c32;
 }
-
 
 void blend_pixel(const int &blendmode, const gen16x_color32 &src, gen16x_color32 &dst_color) {
     int dst[4];
@@ -80,7 +73,6 @@ inline void write_pixel(const int &blendmode, const gen16x_color32 &src_color, g
     } else {
         blend_pixel(blendmode, src_color, dst_color);
     }
-
 }
 
 void render_row_direct(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
@@ -131,13 +123,11 @@ void render_row_direct(gen16x_ppu_state* ppu, int layer_index, int row_index, in
     }
 }
 
-
 template<int tile_size_shift>
 void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
     gen16x_ppu_layer_tiles * layer_tiles = (gen16x_ppu_layer_tiles*)(ppu->vram + layer.vram_offset);
     
-    const gen16x_color32* cgram32 = ppu->cgram32;
     unsigned char blendmode = layer.blend_mode;
     const unsigned char* tile_map = layer_tiles->tile_map;
     const unsigned char* tile_palette = layer_tiles->tile_palette;
@@ -224,7 +214,6 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
             tile[1] = tile[1] & tilemap_wh_mask[1];
         }
 
-
         unsigned int tile_offset = (tile[1] << tilemap_width_shift) + tile[0];
         unsigned int tile_index = tile_map[tile_offset];
 
@@ -239,25 +228,90 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
 
         unsigned int tile_pixel_offset = (tile_index << tile_index_shift) | (tile_sub[1] << tile_size_shift) | (tile_sub[0]);
         unsigned char tile_pixel = tile_palette[tile_pixel_offset];
-
-        write_pixel(blendmode, cgram32[tile_pixel], *((gen16x_color32*)&row_pixels[x]));
+        write_pixel(blendmode, ppu->cgram32[tile_pixel], *((gen16x_color32*)&row_pixels[x]));
     }
-
 }
 
+void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
+    auto &layer = ppu->layers[layer_index];
+    gen16x_ppu_layer_sprites* layer_sprites = (gen16x_ppu_layer_sprites*)(ppu->vram + layer.vram_offset);
 
+    int blendmode = layer.blend_mode;
 
-
-void gen16x_ppu_render(gen16x_ppu_state* ppu) {
     
+    const int num_bins = 256;
+    const int sprites_per_bin = 16;
+    char sprite_bins[num_bins][sprites_per_bin + 1] = {0};
+    
+
+    for (int s = 0; s < 128; s++) {
+        gen16x_ppu_sprite& sprite = layer_sprites->sprites[s];
+        int s_x = sprite.x;
+        int s_y = sprite.y;
+        int s_s = 1 << sprite.size;
+
+        if ((s_y + s_s < 0) || (s_y >= ppu->screen_height)
+            || (s_x + s_s < col_start) || (s_x >= col_start)) {
+            continue;
+        }
+
+
+        for (int b = s_y; b < num_bins && b < s_y + s_s; ++b) {
+            if (sprite_bins[b][0] < sprites_per_bin) {
+                sprite_bins[b][++sprite_bins[b][0]] = (char)s;
+            }
+        }
+
+    }
+
+    int row_bin = (row_index >> 5) & 0xF;
+
+    int n_sprites = sprite_bins[row_bin][0];
+    for (int c = 0; c < n_sprites; c++) {
+        int sprite_index = sprite_bins[row_bin][c + 1];
+        gen16x_ppu_sprite& sprite = layer_sprites->sprites[sprite_index];
+        int sprite_size = 1 << sprite.size;
+        int start = sprite.x;
+        if (col_start > start) {
+            start = col_start;
+        }
+        int end = sprite.x + sprite_size;
+        if (col_end < end) {
+            end = col_end;
+        }
+        int y0 = (row_index - sprite.y);
+        int s_sub_y = y0 >> 3;
+        int s_sub_y0 = y0 & 0x7;
+        
+        for (int x = start; x < end; ++x) {
+            int x0 = x - start;
+            int s_sub_x = x0 >> 3;
+            int s_sub_x0 = x0 & 0x7;
+            int s_sub_offset = (s_sub_y << sprite.size) + s_sub_x;
+            unsigned int s_offset = (sprite.tile_index << 5) 
+                                  + (s_sub_offset << (sprite.size - 3))
+                                  + (s_sub_y0 << sprite.size)
+                                  + (s_sub_x0);
+
+            unsigned int sprite_color = (int)layer_sprites->sprite_palette[s_offset >> 1];
+            unsigned int mask_shift = (s_offset & 0x1);
+            unsigned int mask = 0xF << mask_shift;
+            sprite_color = (sprite_color & mask) >> mask_shift;
+            write_pixel(blendmode, ppu->cgram32[sprite.color_palette[sprite_color]], *((gen16x_color32*)&row_pixels[x]));
+        }
+    }
+}
+void gen16x_ppu_render(gen16x_ppu_state* ppu) {
+
     for (int y = 0; y < ppu->screen_height; ++y) {
         if (ppu->row_callback) {
             ppu->row_callback(y);
         }
         unsigned int* row_pixels = (unsigned int*)(ppu->vram + ppu->framebuffer_offset) + y*ppu->screen_width;
-        for (int x = 0; x < ppu->screen_width/2; x++) {
-            *((unsigned long long*)row_pixels + x) = 0L;
+        for (int i = 0; i < ppu->screen_width; ++i) {
+            row_pixels[i] = 0;
         }
+        //memset(row_pixels, 0, ppu->screen_width*4);
         for (int l = 0; l < 6; l++) {
             switch (ppu->layers[l].layer_type) {
             case GEN16X_LAYER_DIRECT:
@@ -271,11 +325,9 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
                 } else if (layer_tiles->tile_size == GEN16X_TILE16) {
                     render_row_tiles<4>(ppu, l, y, 0, ppu->screen_width, row_pixels);
                 }
-                
                 break;
             }
             }
         }
     }
 }
-

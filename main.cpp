@@ -98,6 +98,8 @@ uint64_t font_8x8[128] = {
     0x0808080808080800,    0x38080C0C08380000,    0x000000324C000000,    0x7E7E7E7E7E7E0000};
 
 
+#include "assets/test_sprite_tiles.h"
+
 const unsigned char test_tileset[256*256] = {
 #include "assets/test_tileset.txt"
 };
@@ -387,10 +389,9 @@ bool init_opengl() {
     
     float quad[] =
     {
-        -1.0f,  1.0f,
         -1.0f, -1.0f,
-        1.0f,  1.0f,
-        1.0f, -1.0f
+        -1.0,  3.0f,
+         3.0f, -1.0f
     };
     
     
@@ -505,8 +506,8 @@ void render_opengl() {
     float dpi_scale_w = (float)d_w/(float)w_w;
     float dpi_scale_h = (float)d_h/(float)w_h;
     
-    float scale_w = float(d_w >> 4) / float(app.ppu.screen_width >> 4);
-    float scale_h = float(d_h >> 4) / float(app.ppu.screen_height >> 4);
+    float scale_w = float(d_w) / float(app.ppu.screen_width);
+    float scale_h = float(d_h) / float(app.ppu.screen_height);
     
     int orig_w = d_w;
     int orig_h = d_h;
@@ -529,7 +530,7 @@ void render_opengl() {
     glViewport(offset_w, offset_h, d_w, d_h);
     
     glClear(GL_COLOR_BUFFER_BIT);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 8);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void handle_resize(int new_w, int new_h) {

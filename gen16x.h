@@ -20,9 +20,6 @@
 #define GEN16X_FLAG_REPEAT_X        0b00001000
 #define GEN16X_FLAG_REPEAT_Y        0b00010000
 
-
-
-
 struct gen16x_color32 {
     union {
         unsigned int color_i;
@@ -103,8 +100,8 @@ struct gen16x_ppu_state {
     unsigned int framebuffer_offset;
     gen16x_color32 cgram32[256];
     unsigned char vram[512*512*4 - (2 + 2 + sizeof(gen16x_ppu_row_callback_t) + sizeof(gen16x_ppu_layer_header)*6 + 4 + 4*256)];
-    
 };
 
-
 void gen16x_ppu_render(gen16x_ppu_state* ppu);
+
+
