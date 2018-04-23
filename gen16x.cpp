@@ -1,3 +1,26 @@
+/*
+    gen16x
+    Copyright (C) 2018 Jahrain Jackson
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+ */
+
 #include <string.h>
 #include "gen16x.h"
 
@@ -111,9 +134,9 @@ inline void write_pixel<GEN16X_BLENDMODE_SUBTRACT>(const gen16x_color32 &src, ge
   
 
 template<int blendmode>
-void render_row_direct(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
+void render_row_direct(gen16x_ppu* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
-    gen16x_ppu_layer_direct * layer_direct = (gen16x_ppu_layer_direct*)(ppu->vram + layer.vram_offset);
+    gen16x_layer_direct * layer_direct = (gen16x_layer_direct*)(ppu->vram + layer.vram_offset);
     
     bool rep_x = (bool)(layer.direct_layer.flags & GEN16X_FLAG_REPEAT_X);
     bool rep_y = (bool)(layer.direct_layer.flags & GEN16X_FLAG_REPEAT_Y);
@@ -158,9 +181,9 @@ void render_row_direct(gen16x_ppu_state* ppu, int layer_index, int row_index, in
 }
 
 template<unsigned char tile_size_shift, int blendmode>
-void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
+void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
-    gen16x_ppu_layer_tiles * layer_tiles = (gen16x_ppu_layer_tiles*)(ppu->vram + layer.vram_offset);
+    gen16x_layer_tiles * layer_tiles = (gen16x_layer_tiles*)(ppu->vram + layer.vram_offset);
 
     const unsigned char* tile_map = layer_tiles->tile_map;
     int y = row_index;
@@ -201,7 +224,7 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
 
     bool apply_tf = (bool)(layer.tile_layer.flags & GEN16X_FLAG_TRANSFORM);
 
-    gen16x_ppu_transform tf = layer.tile_layer.transform;
+    gen16x_transform tf = layer.tile_layer.transform;
 
     for (int x = col_start; x < col_end; ++x) {
 
@@ -260,9 +283,9 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
 }
 
 template<int blendmode>
-void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
+void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
-    gen16x_ppu_layer_sprites* layer_sprites = (gen16x_ppu_layer_sprites*)(ppu->vram + layer.vram_offset);
+    gen16x_layer_sprites* layer_sprites = (gen16x_layer_sprites*)(ppu->vram + layer.vram_offset);
 
    
     unsigned char sprites_to_draw[GEN16X_MAX_SPRITES_PER_ROW];
@@ -270,7 +293,7 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
     int num_sprites = 0;
 
     for (int s = 0; s < GEN16X_MAX_SPRITES; s++) {
-        gen16x_ppu_sprite& sprite = layer.sprite_layer.sprites[s];
+        gen16x_sprite& sprite = layer.sprite_layer.sprites[s];
         
         if (!(sprite.flags & GEN16X_FLAG_SPRITE_ENABLED)) {
             continue;
@@ -299,7 +322,7 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
 
     for (int c = 0; c < num_sprites; c++) {
         int sprite_index = sprites_to_draw[c];
-        gen16x_ppu_sprite& sprite = layer.sprite_layer.sprites[sprite_index];
+        gen16x_sprite& sprite = layer.sprite_layer.sprites[sprite_index];
 
         int s_sw = (sprite.size & GEN16X_SPRITE_WIDTH_MASK);
         int s_sh = ((sprite.size & GEN16X_SPRITE_HEIGHT_MASK) >> 4);
@@ -340,22 +363,15 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
         }
     }
 }
-void gen16x_ppu_render(gen16x_ppu_state* ppu) {
-
-    
+void gen16x_ppu_render(gen16x_ppu* ppu) {
     for (int y = 0; y < ppu->screen_height; ++y) {
         if (ppu->row_callback) {
             ppu->row_callback(ppu, y);
         }
         
         unsigned int* row_pixels = (unsigned int*)(ppu->vram + ppu->framebuffer_offset) + y*ppu->screen_width;
-        /*for (int i = 0; i < ppu->screen_width; ++i) {
-            row_pixels[i] = 0;
-        }*/
 
         memset(row_pixels, 0, ppu->screen_width*4);
-        
-        
         
         for (int l = 0; l < 6; l++) {
             
