@@ -624,24 +624,16 @@ void render_opengl() {
 
 void render_sdl() {
 
-
-
-
-
-    /*glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, app.ppu.screen_width, app.ppu.screen_height,
-        GL_BGRA, GL_UNSIGNED_BYTE, app.ppu.vram + app.ppu.framebuffer_offset);*/
-
-
-
     int d_w, d_h;
     int w_w, w_h;
 
     SDL_GetWindowSize(app.window, &w_w, &w_h);
-    SDL_GL_GetDrawableSize(app.window, &d_w, &d_h);
-
-    float dpi_scale_w = (float)d_w / (float)w_w;
-    float dpi_scale_h = (float)d_h / (float)w_h;
-
+    
+    SDL_Surface* window_surface = SDL_GetWindowSurface(app.window);
+    
+    d_w = window_surface->w;
+    d_h = window_surface->h;
+    
     float scale_w = float(d_w) / float(app.ppu.screen_width);
     float scale_h = float(d_h) / float(app.ppu.screen_height);
 
@@ -661,18 +653,8 @@ void render_sdl() {
 
     int offset_w = (orig_w - d_w) / 2;
     int offset_h = (orig_h - d_h) / 2;
-    SDL_Surface* window_surface = SDL_GetWindowSurface(app.window);
+    
 
-    /*SDL_LockSurface(app.surface);
-    memcpy(app.surface->pixels, app.ppu.vram + app.ppu.framebuffer_offset, app.ppu.screen_width*app.ppu.screen_height*4);
-    SDL_UnlockSurface(app.surface);
-    SDL_Rect rect;
-    rect.x = offset_w;
-    rect.y = offset_h;
-    rect.w = d_w;
-    rect.h = d_h;
-    //SDL_BlitScaled(app.surface, NULL, window_surface, &rect);
-    */
     
     float ratio_x = float(app.ppu.screen_width)/float(d_w);
     float ratio_y = float(app.ppu.screen_height)/float(d_h);
