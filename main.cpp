@@ -48,7 +48,7 @@ struct application_state {
     bool quitting = false;
     double frame_no = 0.0;
     double delta_time = 0.0;
-    
+    double current_time = 0.0;
     bool opengl_enabled;
     uint32_t quad_va;
     uint32_t quad_vbo;
@@ -329,11 +329,15 @@ void init_ppu() {
         }
         static int z = 0;
         z += 1;
+        
+        gen16x_ppu_layer_direct& layer_direct = *(gen16x_ppu_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
+        
         gen16x_ppu_layer_sprites& sprites_layer = *(gen16x_ppu_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
 
-        //sprites_layer.sprites[1].x = 100 + sinf(y/7.0f)*(app.ppu.screen_height - y)/5.0f;
-        //sprites_layer.sprites[1].y = (sprites_layer.sprites[1].y/4 - y) + cosf(y / 7.0f)*5;
-
+        sprites_layer.sprites[1].x = 100 + sinf(app.current_time*1.31 + y/4.0f)*2;
+        sprites_layer.sprites[1].y = 100 + cosf(app.current_time*2.2 + 0.25*sinf(y/4.0))*10 + y*0.25;
+        //layer_direct.scroll_x = 2*sinf(app.current_time*1.31 + y/4.0f)*2;
+        //layer_direct.scroll_y = 10 + sinf(app.current_time*1.3 + y/4.0f);
         int h = y - 80;
         
         if (h > 0) {
@@ -589,9 +593,7 @@ void render_opengl() {
     SDL_GetWindowSize(app.window, &w_w, &w_h);
     SDL_GL_GetDrawableSize(app.window, &d_w, &d_h);
     
-    float dpi_scale_w = (float)d_w/(float)w_w;
-    float dpi_scale_h = (float)d_h/(float)w_h;
-    
+
     float scale_w = float(d_w) / float(app.ppu.screen_width);
     float scale_h = float(d_h) / float(app.ppu.screen_height);
     
@@ -848,7 +850,8 @@ int main() {
         } else {
             render_sdl();
         }
-        
+        app.current_time += app.delta_time;
+
         if (app.timer.elapsed() > 1.0 && app.frame_no > 0.0) {
             char fps_text[32];
             app.delta_time = (float)(app.timer.elapsed() / app.frame_no);
