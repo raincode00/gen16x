@@ -152,14 +152,13 @@ template<int tile_size_shift, int blendmode>
 void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
     gen16x_ppu_layer_tiles * layer_tiles = (gen16x_ppu_layer_tiles*)(ppu->vram + layer.vram_offset);
-    
+
     const unsigned char* tile_map = layer_tiles->tile_map;
-    const unsigned char* tile_palette = layer_tiles->tile_palette;
     int y = row_index;
     
     const int tile_size = (1 << tile_size_shift);
     const int tile_index_shift = 4 + tile_size_shift;
-    const int tile_size_mask = tile_size - 1;
+    const unsigned int tile_size_mask = tile_size - 1;
 
     int tilemap_width_shift = layer_tiles->tilemap_width;
     int tilemap_wh[2] = {
@@ -221,7 +220,7 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
         
         bool discard = (tile_oob[0] && not_clamp_or_rep[0]) 
                     || (tile_oob[1] && not_clamp_or_rep[1]);
-
+        
         if (discard) {
             continue;
         }
@@ -237,21 +236,16 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
         } else {
             tile[1] = tile[1] & tilemap_wh_mask[1];
         }
-
         unsigned int tile_offset = (tile[1] << tilemap_width_shift) + tile[0];
         unsigned int tile_index = tile_map[tile_offset];
 
-        if (tile_index == 0) {
-            continue;
-        }
-
         unsigned int tile_sub[2] = {
-            ((unsigned int)xy0[0] & (unsigned int)tile_size_mask),
-            ((unsigned int)xy0[1] & (unsigned int)tile_size_mask)
+            ((unsigned int)xy0[0] & tile_size_mask),
+            ((unsigned int)xy0[1] & tile_size_mask)
         };
 
         unsigned int tile_pixel_offset = (tile_index << tile_index_shift) | (tile_sub[1] << tile_size_shift) | (tile_sub[0]);
-        unsigned char tile_pixel = tile_palette[tile_pixel_offset];
+        unsigned char tile_pixel = layer_tiles->tile_palette[tile_pixel_offset];
         write_pixel<blendmode>(ppu->cgram32[tile_pixel], *((gen16x_color32*)&row_pixels[x]));
     }
 }
@@ -350,47 +344,49 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
         }
 
         //memset(row_pixels, 0, ppu->screen_width*4);
-        #define CASE_ALL_BLENDMODES(type) \
-        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_NONE);\
-        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_ALPHA);\
-        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_ADD);\
-        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_MULTIPLY);\
-        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_SUBTRACT);
-
+        
+        
+        
         for (int l = 0; l < 6; l++) {
+            
+            #define CASE_BLENDMODE_DIRECT(mode) case (mode):\
+                render_row_direct<mode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
+
+            #define CASE_BLENDMODE_TILES8(mode) case (mode):\
+                render_row_tiles<3, mode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
+
+            #define CASE_BLENDMODE_TILES16(mode) case (mode):\
+                render_row_tiles<4, mode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
+
+            #define CASE_BLENDMODE_SPRITES(mode) case (mode):\
+                render_row_sprites<mode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
+
+            
+            #define CASE_ALL_BLENDMODES(type) \
+                CASE_BLENDMODE_##type(GEN16X_BLENDMODE_NONE);\
+                CASE_BLENDMODE_##type(GEN16X_BLENDMODE_ALPHA);\
+                CASE_BLENDMODE_##type(GEN16X_BLENDMODE_ADD);\
+                CASE_BLENDMODE_##type(GEN16X_BLENDMODE_SUBTRACT);\
+                CASE_BLENDMODE_##type(GEN16X_BLENDMODE_MULTIPLY);
+
+            #define ALL_BLENDMODE_SWITCH(type) switch (ppu->layers[l].blend_mode) {CASE_ALL_BLENDMODES(type)}
+
             switch (ppu->layers[l].layer_type) {
             case GEN16X_LAYER_DIRECT:
-                switch (ppu->layers[l].blend_mode) {
-                #define CASE_BLENDMODE_DIRECT(blendmode) case (blendmode):\
-                    render_row_direct<blendmode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
-                CASE_ALL_BLENDMODES(DIRECT)
-                }
-                
+                ALL_BLENDMODE_SWITCH(DIRECT);
                 break;
             case GEN16X_LAYER_TILES:
             {
                 gen16x_ppu_layer_tiles * layer_tiles = (gen16x_ppu_layer_tiles*)(ppu->vram + ppu->layers[l].vram_offset);
                 if (layer_tiles->tile_size == GEN16X_TILE8) {
-                    switch (ppu->layers[l].blend_mode) {
-                    #define CASE_BLENDMODE_TILES8(blendmode) case (blendmode):\
-                        render_row_tiles<3, blendmode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
-                    CASE_ALL_BLENDMODES(TILES8)
-                    }
+                    ALL_BLENDMODE_SWITCH(TILES8);
                 } else if (layer_tiles->tile_size == GEN16X_TILE16) {
-                    switch (ppu->layers[l].blend_mode) {
-                    #define CASE_BLENDMODE_TILES16(blendmode) case (blendmode):\
-                        render_row_tiles<4, blendmode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break;
-                    CASE_ALL_BLENDMODES(TILES16)
-                    }
+                    ALL_BLENDMODE_SWITCH(TILES16)
                 }
                 break;
             }
             case GEN16X_LAYER_SPRITES:
-                switch (ppu->layers[l].blend_mode) {
-                #define CASE_BLENDMODE_SPRITES(blendmode) case (blendmode):\
-                    render_row_sprites<GEN16X_BLENDMODE_NONE>(ppu, l, y, 0, ppu->screen_width, row_pixels); break;
-                CASE_ALL_BLENDMODES(SPRITES)
-                }
+                ALL_BLENDMODE_SWITCH(SPRITES)
                 break;
             }
         }
