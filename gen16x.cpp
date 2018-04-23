@@ -169,8 +169,8 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
     const int tile_index_shift = 4 + tile_size_shift;
     const unsigned int tile_size_mask = tile_size - 1;
 
-    int tilemap_width_shift = layer.tile_layer.tilemap_width;
-    int tilemap_wh[2] = {
+    unsigned char tilemap_width_shift = layer.tile_layer.tilemap_width;
+    unsigned char tilemap_wh[2] = {
         1 << tilemap_width_shift,
         1 << layer.tile_layer.tilemap_height
     };
@@ -248,9 +248,9 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
         unsigned int tile_offset = (tile[1] << tilemap_width_shift) + tile[0];
         unsigned int tile_index = tile_map[tile_offset];
 
-        unsigned int tile_sub[2] = {
-            ((unsigned int)xy0[0] & tile_size_mask),
-            ((unsigned int)xy0[1] & tile_size_mask)
+        unsigned char tile_sub[2] = {
+            ((unsigned char)xy0[0] & tile_size_mask),
+            ((unsigned char)xy0[1] & tile_size_mask)
         };
 
         unsigned int tile_pixel_offset = (tile_index << tile_index_shift) | (tile_sub[1] << tile_size_shift) | (tile_sub[0]);

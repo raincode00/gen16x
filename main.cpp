@@ -840,11 +840,13 @@ int main() {
 
         
         gen16x_ppu_render(&app.ppu);
+       
         if (app.opengl_enabled) {
             render_opengl();
         } else {
             render_sdl();
         }
+        
         app.current_time += app.delta_time;
 
         if (app.timer.elapsed() > 1.0 && app.frame_no > 0.0) {
@@ -858,6 +860,8 @@ int main() {
             
             app.frame_no = 0.0;
             app.timer.reset();
+
+            
         }
         app.frame_no++;
         if (app.opengl_enabled) {
