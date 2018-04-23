@@ -1,4 +1,4 @@
-#include <string.h>
+﻿#include <string.h>
 #include "gen16x.h"
 
 inline int clamp0(int x, int b) {
@@ -328,7 +328,7 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
             int s_sub_index = ((s_sub_y << (s_sw - 3)) + s_sub_x);
             int s_offset = (sprite.tile_index << 6) + (s_sub_index << 6) + (s_sub_y0 << 3) + (s_sub_x0);
 
-            unsigned int sprite_color = (int)layer_sprites->sprite_palette[s_offset >> 1];
+            unsigned int sprite_color = (int)layer_sprites->sprite_palette[(s_offset >> 1)&0x1FFFF];
             unsigned int sprite_color0 = sprite_color >> 4;
             unsigned int sprite_color1 = sprite_color & 0xF;
             if (x >= col_start) {
@@ -345,7 +345,7 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
     
     for (int y = 0; y < ppu->screen_height; ++y) {
         if (ppu->row_callback) {
-            ppu->row_callback(y);
+            ppu->row_callback(ppu, y);
         }
         
         unsigned int* row_pixels = (unsigned int*)(ppu->vram + ppu->framebuffer_offset) + y*ppu->screen_width;

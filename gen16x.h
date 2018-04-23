@@ -1,9 +1,10 @@
 #pragma once
 
+#define GEN16X_LAYER_NONE           0x00
 #define GEN16X_LAYER_DIRECT         0x01
 #define GEN16X_LAYER_TILES          0x02
 #define GEN16X_LAYER_SPRITES        0x03
-#define GEN16X_LAYER_PASS           0x04
+
 
 #define GEN16X_BLENDMODE_NONE       0x00
 #define GEN16X_BLENDMODE_ALPHA      0x01
@@ -116,8 +117,9 @@ struct gen16x_ppu_layer_header {
         
     };
 };
+struct gen16x_ppu_state;
 
-typedef void(*gen16x_ppu_row_callback_t)(unsigned int);
+typedef void(*gen16x_ppu_row_callback_t)(gen16x_ppu_state*, unsigned int);
 
 struct gen16x_ppu_state {
     unsigned short screen_width;
@@ -130,5 +132,6 @@ struct gen16x_ppu_state {
 };
 
 void gen16x_ppu_render(gen16x_ppu_state* ppu);
+
 
 

@@ -325,9 +325,9 @@ void init_ppu() {
 
 
 
-    app.ppu.row_callback = (gen16x_ppu_row_callback_t)[](unsigned int y) {
+    app.ppu.row_callback = (gen16x_ppu_row_callback_t)[](gen16x_ppu_state* ppu, unsigned int y) {
         if (y > 16) {
-            app.ppu.layers[2].layer_type = GEN16X_LAYER_PASS;
+            app.ppu.layers[2].layer_type = GEN16X_LAYER_NONE;
         }
         static int z = 0;
         z += 1;
@@ -344,7 +344,7 @@ void init_ppu() {
         
         if (h > 0) {
             
-            app.ppu.layers[0].layer_type = GEN16X_LAYER_PASS;
+            app.ppu.layers[0].layer_type = GEN16X_LAYER_NONE;
             app.ppu.layers[1].layer_type = GEN16X_LAYER_TILES;
             float ay = player.height + 16;
             
@@ -820,7 +820,7 @@ int main() {
         
         
         app.ppu.layers[0].layer_type = GEN16X_LAYER_DIRECT;
-        app.ppu.layers[1].layer_type = GEN16X_LAYER_PASS;
+        app.ppu.layers[1].layer_type = GEN16X_LAYER_NONE;
         app.ppu.layers[2].layer_type = GEN16X_LAYER_TILES;
 
 
