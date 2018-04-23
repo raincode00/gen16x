@@ -1,4 +1,4 @@
-﻿#include <string.h>
+#include <string.h>
 #include "gen16x.h"
 
 inline int clamp0(int x, int b) {
@@ -157,7 +157,7 @@ void render_row_direct(gen16x_ppu_state* ppu, int layer_index, int row_index, in
     }
 }
 
-template<int tile_size_shift, int blendmode>
+template<unsigned char tile_size_shift, int blendmode>
 void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
     gen16x_ppu_layer_tiles * layer_tiles = (gen16x_ppu_layer_tiles*)(ppu->vram + layer.vram_offset);
@@ -165,14 +165,14 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
     const unsigned char* tile_map = layer_tiles->tile_map;
     int y = row_index;
     
-    const int tile_size = (1 << tile_size_shift);
-    const int tile_index_shift = 4 + tile_size_shift;
-    const unsigned int tile_size_mask = tile_size - 1;
+    const unsigned char tile_size = (1 << tile_size_shift);
+    const unsigned char tile_index_shift = 4 + tile_size_shift;
+    const unsigned char tile_size_mask = tile_size - 1;
 
     unsigned char tilemap_width_shift = layer.tile_layer.tilemap_width;
     unsigned char tilemap_wh[2] = {
-        1 << tilemap_width_shift,
-        1 << layer.tile_layer.tilemap_height
+        (unsigned char)(1 << tilemap_width_shift),
+        (unsigned char)(1 << layer.tile_layer.tilemap_height)
     };
     
     int tilemap_wh_mask[2] = {
@@ -249,8 +249,8 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
         unsigned int tile_index = tile_map[tile_offset];
 
         unsigned char tile_sub[2] = {
-            ((unsigned char)xy0[0] & tile_size_mask),
-            ((unsigned char)xy0[1] & tile_size_mask)
+            (unsigned char)((unsigned char)xy0[0] & tile_size_mask),
+            (unsigned char)((unsigned char)xy0[1] & tile_size_mask)
         };
 
         unsigned int tile_pixel_offset = (tile_index << tile_index_shift) | (tile_sub[1] << tile_size_shift) | (tile_sub[0]);
