@@ -35,49 +35,70 @@ gen16x_color32 argb16_to_argb32(unsigned short c) {
 
 template<int blendmode>
 inline void write_pixel(const gen16x_color32 &src, gen16x_color32 &dst_color) {
-    if (blendmode == GEN16X_BLENDMODE_NONE) {
-        if (src.a) {
-            dst_color = src;
-        }
-    } else {
         int dst[4];
-        dst[1] = dst_color.r;
-        dst[2] = dst_color.g;
-        dst[3] = dst_color.b;
+    
         switch (blendmode) {
+        case GEN16X_BLENDMODE_NONE:
+            if (src.a) {
+                dst_color = src;
+            }
+            return;
         case GEN16X_BLENDMODE_ALPHA:
+            dst[1] = dst_color.r;
+            dst[2] = dst_color.g;
+            dst[3] = dst_color.b;
             dst[1] = (((int)src.r*src.a) + ((int)dst[1] * (255 - src.a))) / 255;
             dst[2] = (((int)src.g*src.a) + ((int)dst[2] * (255 - src.a))) / 255;
             dst[3] = (((int)src.b*src.a) + ((int)dst[3] * (255 - src.a))) / 255;
-            break;
+            dst_color.r = (unsigned char)dst[1];
+            dst_color.g = (unsigned char)dst[2];
+            dst_color.b = (unsigned char)dst[3];
+            return;
+                
         case GEN16X_BLENDMODE_ADD:
+            dst[1] = dst_color.r;
+            dst[2] = dst_color.g;
+            dst[3] = dst_color.b;
             dst[1] = (int)src.r + dst[1];
             dst[2] = (int)src.g + dst[2];
             dst[3] = (int)src.b + dst[3];
-
             dst[1] = dst[1] > 255 ? 255 : dst[1];
             dst[2] = dst[2] > 255 ? 255 : dst[2];
             dst[3] = dst[3] > 255 ? 255 : dst[3];
-            break;
+            dst_color.r = (unsigned char)dst[1];
+            dst_color.g = (unsigned char)dst[2];
+            dst_color.b = (unsigned char)dst[3];
+            return;
+            
         case GEN16X_BLENDMODE_MULTIPLY:
+            dst[1] = dst_color.r;
+            dst[2] = dst_color.g;
+            dst[3] = dst_color.b;
             dst[1] = (int)src.r * dst[1] / 255;
             dst[2] = (int)src.g * dst[2] / 255;
             dst[3] = (int)src.b * dst[3] / 255;
-            break;
+            dst_color.r = (unsigned char)dst[1];
+            dst_color.g = (unsigned char)dst[2];
+            dst_color.b = (unsigned char)dst[3];
+            return;
+
         case GEN16X_BLENDMODE_SUBTRACT:
+            dst[1] = dst_color.r;
+            dst[2] = dst_color.g;
+            dst[3] = dst_color.b;
             dst[1] = dst[1] - (int)src.r;
             dst[2] = dst[2] - (int)src.g;
             dst[3] = dst[3] - (int)src.b;
-
             dst[1] = dst[1] < 0 ? 0 : dst[1];
             dst[2] = dst[2] < 0 ? 0 : dst[2];
             dst[3] = dst[3] < 0 ? 0 : dst[3];
-            break;
+            dst_color.r = (unsigned char)dst[1];
+            dst_color.g = (unsigned char)dst[2];
+            dst_color.b = (unsigned char)dst[3];
+            return;
         }
-        dst_color.r = (unsigned char)dst[1];
-        dst_color.g = (unsigned char)dst[2];
-        dst_color.b = (unsigned char)dst[3];
-    }
+    
+    
 }
 
 template<int blendmode>
@@ -329,20 +350,20 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
         }
 
         //memset(row_pixels, 0, ppu->screen_width*4);
-        #define CASE_ALL_BLENDMODES \
-        CASE_BLENDMODE_(GEN16X_BLENDMODE_NONE);\
-        CASE_BLENDMODE_(GEN16X_BLENDMODE_ALPHA);\
-        CASE_BLENDMODE_(GEN16X_BLENDMODE_ADD);\
-        CASE_BLENDMODE_(GEN16X_BLENDMODE_MULTIPLY);\
-        CASE_BLENDMODE_(GEN16X_BLENDMODE_SUBTRACT);
+        #define CASE_ALL_BLENDMODES(type) \
+        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_NONE);\
+        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_ALPHA);\
+        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_ADD);\
+        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_MULTIPLY);\
+        CASE_BLENDMODE_##type(GEN16X_BLENDMODE_SUBTRACT);
 
         for (int l = 0; l < 6; l++) {
             switch (ppu->layers[l].layer_type) {
             case GEN16X_LAYER_DIRECT:
                 switch (ppu->layers[l].blend_mode) {
-                #define CASE_BLENDMODE_(blendmode) case (blendmode):\
+                #define CASE_BLENDMODE_DIRECT(blendmode) case (blendmode):\
                     render_row_direct<blendmode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
-                CASE_ALL_BLENDMODES
+                CASE_ALL_BLENDMODES(DIRECT)
                 }
                 
                 break;
@@ -351,24 +372,24 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
                 gen16x_ppu_layer_tiles * layer_tiles = (gen16x_ppu_layer_tiles*)(ppu->vram + ppu->layers[l].vram_offset);
                 if (layer_tiles->tile_size == GEN16X_TILE8) {
                     switch (ppu->layers[l].blend_mode) {
-                    #define CASE_BLENDMODE_(blendmode) case (blendmode):\
+                    #define CASE_BLENDMODE_TILES8(blendmode) case (blendmode):\
                         render_row_tiles<3, blendmode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
-                    CASE_ALL_BLENDMODES
+                    CASE_ALL_BLENDMODES(TILES8)
                     }
                 } else if (layer_tiles->tile_size == GEN16X_TILE16) {
                     switch (ppu->layers[l].blend_mode) {
-                    #define CASE_BLENDMODE_(blendmode) case (blendmode):\
+                    #define CASE_BLENDMODE_TILES16(blendmode) case (blendmode):\
                         render_row_tiles<4, blendmode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break;
-                    CASE_ALL_BLENDMODES
+                    CASE_ALL_BLENDMODES(TILES16)
                     }
                 }
                 break;
             }
             case GEN16X_LAYER_SPRITES:
                 switch (ppu->layers[l].blend_mode) {
-                #define CASE_BLENDMODE_(blendmode) case (blendmode):\
+                #define CASE_BLENDMODE_SPRITES(blendmode) case (blendmode):\
                     render_row_sprites<GEN16X_BLENDMODE_NONE>(ppu, l, y, 0, ppu->screen_width, row_pixels); break;
-                CASE_ALL_BLENDMODES
+                CASE_ALL_BLENDMODES(SPRITES)
                 }
                 break;
             }
