@@ -674,15 +674,19 @@ void render_sdl() {
     //SDL_BlitScaled(app.surface, NULL, window_surface, &rect);
     */
     
-    float ratio_x = float(app.ppu.screen_width)/float(window_surface->w);
-    float ratio_y = float(app.ppu.screen_height)/float(window_surface->h);
+    float ratio_x = float(app.ppu.screen_width)/float(d_w);
+    float ratio_y = float(app.ppu.screen_height)/float(d_h);
     SDL_LockSurface(window_surface);
     int prev_y0 = -1;
     for (int y = 0; y < window_surface->h; ++y) {
+        unsigned int* dst_row = (unsigned int*)window_surface->pixels + y * window_surface->pitch / 4;
         
-        int y0 = ratio_x * y;
-        unsigned int* dst_row = (unsigned int*)window_surface->pixels + y*window_surface->pitch/4;
-        unsigned int* src_row = (unsigned int*)(app.ppu.vram + app.ppu.framebuffer_offset) + y0*app.ppu.screen_width;
+        if (y < offset_h || y - offset_h >= d_h) {
+            memset(dst_row, 0, window_surface->pitch);
+            continue;
+        }
+        int y0 = ratio_y * (y - offset_h);
+        unsigned int* src_row = (unsigned int*)(app.ppu.vram + app.ppu.framebuffer_offset) + y0 * app.ppu.screen_width;
 
         if (prev_y0 == y0) {
             memcpy(dst_row, dst_row - window_surface->pitch / 4, window_surface->pitch);
@@ -692,7 +696,12 @@ void render_sdl() {
         prev_y0 = y0;
         int prev_x0 = -1;
         for (int x = 0; x < window_surface->w; ++x) {
-            int x0 = ratio_x * x;
+            if (x < offset_w || x - offset_w >= d_w) {
+                dst_row[x] = 0;
+                continue;
+            }
+
+            int x0 = ratio_x * (x - offset_w);
             if (prev_x0 == x0) {
                 dst_row[x] = prev_pixel;
                 continue;
