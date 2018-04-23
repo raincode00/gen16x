@@ -255,7 +255,6 @@ void init_ppu() {
     offset += (sizeof(gen16x_ppu_layer_tiles));
     
     
-
     app.ppu.layers[3].layer_type = GEN16X_LAYER_SPRITES;
     app.ppu.layers[3].vram_offset = offset;
     app.ppu.layers[3].blend_mode = GEN16X_BLENDMODE_NONE;

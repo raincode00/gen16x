@@ -50,9 +50,9 @@ inline void write_pixel<GEN16X_BLENDMODE_ALPHA>(const gen16x_color32 &src, gen16
     dst[1] = dst_color.r;
     dst[2] = dst_color.g;
     dst[3] = dst_color.b;
-    dst[1] = (((int)src.r*src.a) + ((int)dst[1] * (255 - src.a))) / 255;
-    dst[2] = (((int)src.g*src.a) + ((int)dst[2] * (255 - src.a))) / 255;
-    dst[3] = (((int)src.b*src.a) + ((int)dst[3] * (255 - src.a))) / 255;
+    dst[1] = (((int)src.r*(src.a)) + ((int)dst[1] * (255 - src.a))) >> 8;
+    dst[2] = (((int)src.g*(src.a)) + ((int)dst[2] * (255 - src.a))) >> 8;
+    dst[3] = (((int)src.b*(src.a)) + ((int)dst[3] * (255 - src.a))) >> 8;
     dst_color.r = (unsigned char)dst[1];
     dst_color.g = (unsigned char)dst[2];
     dst_color.b = (unsigned char)dst[3];
@@ -65,9 +65,9 @@ inline void write_pixel<GEN16X_BLENDMODE_ADD>(const gen16x_color32 &src, gen16x_
     dst[1] = dst_color.r;
     dst[2] = dst_color.g;
     dst[3] = dst_color.b;
-    dst[1] = (int)src.r*src.a/255 + dst[1];
-    dst[2] = (int)src.g*src.a/255 + dst[2];
-    dst[3] = (int)src.b*src.a/255 + dst[3];
+    dst[1] = ((int)src.r*((int)src.a) >> 8) + dst[1];
+    dst[2] = ((int)src.g*((int)src.a) >> 8) + dst[2];
+    dst[3] = ((int)src.b*((int)src.a) >> 8) + dst[3];
     dst[1] = dst[1] > 255 ? 255 : dst[1];
     dst[2] = dst[2] > 255 ? 255 : dst[2];
     dst[3] = dst[3] > 255 ? 255 : dst[3];
@@ -82,9 +82,9 @@ inline void write_pixel<GEN16X_BLENDMODE_MULTIPLY>(const gen16x_color32 &src, ge
     dst[1] = dst_color.r;
     dst[2] = dst_color.g;
     dst[3] = dst_color.b;
-    dst[1] = (int)src.a*((int)src.r)* dst[1] /(255*255) + (255 - (int)src.a)*dst[1]/255;
-    dst[2] = (int)src.a*((int)src.g)* dst[2] /(255*255) + (255 - (int)src.a)*dst[2]/255;
-    dst[3] = (int)src.a*((int)src.b)* dst[3] /(255*255) + (255 - (int)src.a)*dst[3]/255;
+    dst[1] = (((int)src.a*((int)src.r)* dst[1]) >> 16) + (((255 - src.a)*dst[1])>>8);
+    dst[2] = (((int)src.a*((int)src.g)* dst[2]) >> 16) + (((255 - src.a)*dst[2])>>8);
+    dst[3] = (((int)src.a*((int)src.b)* dst[3]) >> 16) + (((255 - src.a)*dst[3])>>8);
     dst_color.r = (unsigned char)(dst[1]);
     dst_color.g = (unsigned char)(dst[2]);
     dst_color.b = (unsigned char)(dst[3]);
@@ -97,9 +97,9 @@ inline void write_pixel<GEN16X_BLENDMODE_SUBTRACT>(const gen16x_color32 &src, ge
     dst[1] = dst_color.r;
     dst[2] = dst_color.g;
     dst[3] = dst_color.b;
-    dst[1] = dst[1] - (int)src.r*src.a/255;
-    dst[2] = dst[2] - (int)src.g*src.a/255;
-    dst[3] = dst[3] - (int)src.b*src.a/255;
+    dst[1] = dst[1] - (((int)src.r*src.a)>>8);
+    dst[2] = dst[2] - (((int)src.g*src.a)>>8);
+    dst[3] = dst[3] - (((int)src.b*src.a)>>8);
     dst[1] = dst[1] < 0 ? 0 : dst[1];
     dst[2] = dst[2] < 0 ? 0 : dst[2];
     dst[3] = dst[3] < 0 ? 0 : dst[3];
@@ -387,7 +387,6 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
                 break;
             case GEN16X_LAYER_TILES:
             {
-                gen16x_ppu_layer_tiles * layer_tiles = (gen16x_ppu_layer_tiles*)(ppu->vram + ppu->layers[l].vram_offset);
                 if (ppu->layers[l].tile_layer.tile_size == GEN16X_TILE8) {
                     ALL_BLENDMODE_SWITCH(TILES8);
                 } else if (ppu->layers[l].tile_layer.tile_size == GEN16X_TILE16) {
