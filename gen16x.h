@@ -36,8 +36,14 @@
 
 #define GEN16X_MAKE_SPRITE_SIZE(w, h)   (((w) & GEN16X_SPRITE_WIDTH_MASK) | ((h) << 4))
 
+#ifdef _MSC_VER
+#  define GEN16X_PACK_STRUCT(name) \
+    __pragma(pack(push, 1)) struct name __pragma(pack(pop))
+#else
+#  define GEN16X_PACK_STRUCT(name) struct __attribute__((packed)) name
+#endif
 
-struct gen16x_color32 {
+GEN16X_PACK_STRUCT(gen16x_color32) {
     union {
         unsigned int color_i;
         struct {
@@ -49,7 +55,7 @@ struct gen16x_color32 {
     };
 };
 
-struct gen16x_ppu_transform {
+GEN16X_PACK_STRUCT(gen16x_ppu_transform) {
     union {
         struct {
             int x;
@@ -67,12 +73,12 @@ struct gen16x_ppu_transform {
     };
     static const int base = 12;
 };
-struct gen16x_ppu_layer_tiles {
+GEN16X_PACK_STRUCT(gen16x_ppu_layer_tiles) {
     unsigned char tile_palette[256*256];    //holds 256 16x16 tiles
     unsigned char tile_map[256 * 256];
 };
 
-struct gen16x_ppu_sprite {
+GEN16X_PACK_STRUCT(gen16x_ppu_sprite) {
     short x;
     short y;
     unsigned char flags;
@@ -82,15 +88,15 @@ struct gen16x_ppu_sprite {
     unsigned short tile_index;
 }; //10 bytes
 
-struct gen16x_ppu_layer_sprites {
+GEN16X_PACK_STRUCT(gen16x_ppu_layer_sprites) {
     unsigned char sprite_palette[1024*128];  // holds 1024 16x16 sprites or 4096 8x8 sprites
 };
 
-struct gen16x_ppu_layer_direct {
+GEN16X_PACK_STRUCT(gen16x_ppu_layer_direct) {
     unsigned char map[512*256];
 };
 
-struct gen16x_ppu_layer_header {
+GEN16X_PACK_STRUCT(gen16x_ppu_layer_header) {
     unsigned char layer_type;
     unsigned char blend_mode;
     unsigned int vram_offset;
@@ -121,7 +127,7 @@ struct gen16x_ppu_state;
 
 typedef void(*gen16x_ppu_row_callback_t)(gen16x_ppu_state*, unsigned int);
 
-struct gen16x_ppu_state {
+GEN16X_PACK_STRUCT (gen16x_ppu_state) {
     unsigned short screen_width;
     unsigned short screen_height;
     gen16x_ppu_row_callback_t row_callback;
