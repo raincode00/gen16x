@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cmath>
 #include <chrono>
+
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
 #include <GL/glew.h>
@@ -121,6 +122,8 @@ const unsigned char test_background[1152 * 80] = {
 
 void init_ppu() {
     memset(&app.ppu, 0, sizeof(app.ppu));
+
+    
     app.ppu.screen_height = 208;
     app.ppu.screen_width = 384;
     
@@ -168,8 +171,8 @@ void init_ppu() {
     gen16x_ppu_layer_direct& direct_layer = *(gen16x_ppu_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
     
     
-    direct_layer.width = 1152;
-    direct_layer.height = 80;
+    app.ppu.layers[0].direct_layer.width = 1152;
+    app.ppu.layers[0].direct_layer.height = 80;
     
     /*for (int i = 0; i < direct_layer.height; i++) {
      for (int j = 0; j < direct_layer.width; j++) {
@@ -189,7 +192,7 @@ void init_ppu() {
      }
      }*/
     
-    offset += direct_layer.width*direct_layer.height + 128;
+    offset += app.ppu.layers[0].direct_layer.width*app.ppu.layers[0].direct_layer.height + 128;
     
     app.ppu.layers[1].layer_type = GEN16X_LAYER_TILES;
     
@@ -210,10 +213,10 @@ void init_ppu() {
     }
     
     memcpy(tile_layer.tile_map, test_tilemap, sizeof(test_tilemap));
-    tile_layer.tile_size = GEN16X_TILE16;
-    tile_layer.flags =  GEN16X_FLAG_TRANSFORM | GEN16X_FLAG_REPEAT_X | GEN16X_FLAG_REPEAT_Y;
-    tile_layer.tilemap_width = 5;
-    tile_layer.tilemap_height = 5;
+    app.ppu.layers[1].tile_layer.tile_size = GEN16X_TILE16;
+    app.ppu.layers[1].tile_layer.flags =  GEN16X_FLAG_TRANSFORM | GEN16X_FLAG_REPEAT_X | GEN16X_FLAG_REPEAT_Y;
+    app.ppu.layers[1].tile_layer.tilemap_width = 5;
+    app.ppu.layers[1].tile_layer.tilemap_height = 5;
     
     
     offset += (sizeof(gen16x_ppu_layer_tiles));
@@ -235,18 +238,18 @@ void init_ppu() {
     char test_text[] = "hello world";
     
     memcpy(tile_layer2.tile_map, test_text, sizeof(test_text));
-    tile_layer2.tile_size = GEN16X_TILE8;
-    tile_layer2.flags = 0;
-    tile_layer2.tilemap_width = 4;
-    tile_layer2.tilemap_height = 1;
+    app.ppu.layers[2].tile_layer.tile_size = GEN16X_TILE8;
+    app.ppu.layers[2].tile_layer.flags = 0;
+    app.ppu.layers[2].tile_layer.tilemap_width = 4;
+    app.ppu.layers[2].tile_layer.tilemap_height = 1;
     
     //tile_layer2.transform.base = 8;
-    tile_layer2.transform.x = -10;
-    tile_layer2.transform.y = -8;
-    tile_layer2.transform.a = 1 << (tile_layer2.transform.base);
-    tile_layer2.transform.b = 0;
-    tile_layer2.transform.c = 0;
-    tile_layer2.transform.d = 1 << (tile_layer2.transform.base);
+    app.ppu.layers[2].tile_layer.transform.x = -10;
+    app.ppu.layers[2].tile_layer.transform.y = -8;
+    app.ppu.layers[2].tile_layer.transform.a = 1 << (app.ppu.layers[2].tile_layer.transform.base);
+    app.ppu.layers[2].tile_layer.transform.b = 0;
+    app.ppu.layers[2].tile_layer.transform.c = 0;
+    app.ppu.layers[2].tile_layer.transform.d = 1 << (app.ppu.layers[2].tile_layer.transform.base);
     
     
     offset += (sizeof(gen16x_ppu_layer_tiles));
@@ -255,7 +258,7 @@ void init_ppu() {
 
     app.ppu.layers[3].layer_type = GEN16X_LAYER_SPRITES;
     app.ppu.layers[3].vram_offset = offset;
-
+    app.ppu.layers[3].blend_mode = GEN16X_BLENDMODE_NONE;
     gen16x_ppu_layer_sprites& sprites_layer = *(gen16x_ppu_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
 
 
@@ -268,53 +271,52 @@ void init_ppu() {
         app.ppu.cgram32[235 + i].color_i = test_sprite2_palette[i];
     }
 
-    sprites_layer.sprites[0].palette_offset = 220;
-    sprites_layer.sprites[0].flags = GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[0].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
-    sprites_layer.sprites[0].tile_index = 0;
-    sprites_layer.sprites[0].x = app.ppu.screen_width/2 - 16;
-    sprites_layer.sprites[0].y = 80;
+    app.ppu.layers[3].sprite_layer.sprites[0].palette_offset = 220;
+    app.ppu.layers[3].sprite_layer.sprites[0].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    app.ppu.layers[3].sprite_layer.sprites[0].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
+    app.ppu.layers[3].sprite_layer.sprites[0].tile_index = 0;
+    app.ppu.layers[3].sprite_layer.sprites[0].x = app.ppu.screen_width/2 - 16;
+    app.ppu.layers[3].sprite_layer.sprites[0].y = 80;
 
-    sprites_layer.sprites[1].palette_offset = 220;
-    sprites_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[1].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
-    sprites_layer.sprites[1].tile_index = (4 * 4)*0;
-    sprites_layer.sprites[1].x = 32;
-    sprites_layer.sprites[1].y = 32;
+    app.ppu.layers[3].sprite_layer.sprites[1].palette_offset = 220;
+    app.ppu.layers[3].sprite_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    app.ppu.layers[3].sprite_layer.sprites[1].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
+    app.ppu.layers[3].sprite_layer.sprites[1].tile_index = (4 * 4)*0;
+    app.ppu.layers[3].sprite_layer.sprites[1].x = 32;
+    app.ppu.layers[3].sprite_layer.sprites[1].y = 32;
 
-    sprites_layer.sprites[2].palette_offset = 220;
-    sprites_layer.sprites[2].flags =  GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[2].size = GEN16X_MAKE_SPRITE_SIZE(5,5);
-    sprites_layer.sprites[2].tile_index = (4 * 4)*6;
-    sprites_layer.sprites[2].x = 47;
-    sprites_layer.sprites[2].y = 65;
+    app.ppu.layers[3].sprite_layer.sprites[2].palette_offset = 220;
+    app.ppu.layers[3].sprite_layer.sprites[2].flags =  GEN16X_FLAG_SPRITE_ENABLED;
+    app.ppu.layers[3].sprite_layer.sprites[2].size = GEN16X_MAKE_SPRITE_SIZE(5,5);
+    app.ppu.layers[3].sprite_layer.sprites[2].tile_index = (4 * 4)*6;
+    app.ppu.layers[3].sprite_layer.sprites[2].x = 47;
+    app.ppu.layers[3].sprite_layer.sprites[2].y = 65;
 
-    sprites_layer.sprites[3].palette_offset = 220;
-    sprites_layer.sprites[3].flags = GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[3].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
-    sprites_layer.sprites[3].tile_index = (4 * 4)*10;
-    sprites_layer.sprites[3].x = 64 + 16;
-    sprites_layer.sprites[3].y = 180;
+    app.ppu.layers[3].sprite_layer.sprites[3].palette_offset = 220;
+    app.ppu.layers[3].sprite_layer.sprites[3].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    app.ppu.layers[3].sprite_layer.sprites[3].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
+    app.ppu.layers[3].sprite_layer.sprites[3].tile_index = (4 * 4)*10;
+    app.ppu.layers[3].sprite_layer.sprites[3].x = 64 + 16;
+    app.ppu.layers[3].sprite_layer.sprites[3].y = 180;
 
-
-    sprites_layer.sprites[4].palette_offset = 235;
-    sprites_layer.sprites[4].flags = GEN16X_FLAG_SPRITE_ENABLED;
-    sprites_layer.sprites[4].size = GEN16X_MAKE_SPRITE_SIZE(4, 4);
-    sprites_layer.sprites[4].tile_index = sizeof(test_sprite_tiles) / 32;
-    sprites_layer.sprites[4].x = 64 + 16;
-    sprites_layer.sprites[4].y = 180;
+    app.ppu.layers[3].sprite_layer.sprites[4].palette_offset = 235;
+    app.ppu.layers[3].sprite_layer.sprites[4].flags = GEN16X_FLAG_SPRITE_ENABLED;
+    app.ppu.layers[3].sprite_layer.sprites[4].size = GEN16X_MAKE_SPRITE_SIZE(4, 4);
+    app.ppu.layers[3].sprite_layer.sprites[4].tile_index = sizeof(test_sprite_tiles) / 32;
+    app.ppu.layers[3].sprite_layer.sprites[4].x = 64 + 16;
+    app.ppu.layers[3].sprite_layer.sprites[4].y = 180;
     
 
 
     for (int i = 5; i < 16; i++) {
 
 
-        sprites_layer.sprites[i].palette_offset = 235;
-        sprites_layer.sprites[i].flags = GEN16X_FLAG_SPRITE_ENABLED;
-        sprites_layer.sprites[i].size = GEN16X_MAKE_SPRITE_SIZE(4, 4);
-        sprites_layer.sprites[i].tile_index = (sizeof(test_sprite_tiles) / 32)  + (2 * 2) * (i % 16);
-        sprites_layer.sprites[i].x = ((i % 32) * 10);
-        sprites_layer.sprites[i].y = 32 + ((i / 32) * 128) + 10*(i%7)*(i%3);
+        app.ppu.layers[3].sprite_layer.sprites[i].palette_offset = 235;
+        app.ppu.layers[3].sprite_layer.sprites[i].flags = GEN16X_FLAG_SPRITE_ENABLED;
+        app.ppu.layers[3].sprite_layer.sprites[i].size = GEN16X_MAKE_SPRITE_SIZE(4, 4);
+        app.ppu.layers[3].sprite_layer.sprites[i].tile_index = (sizeof(test_sprite_tiles) / 32)  + (2 * 2) * (i % 16);
+        app.ppu.layers[3].sprite_layer.sprites[i].x = ((i % 32) * 10);
+        app.ppu.layers[3].sprite_layer.sprites[i].y = 32 + ((i / 32) * 128) + 10*(i%7)*(i%3);
 
     }
     
@@ -334,8 +336,8 @@ void init_ppu() {
         
         gen16x_ppu_layer_sprites& sprites_layer = *(gen16x_ppu_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
 
-        sprites_layer.sprites[1].x = 100 + sinf(app.current_time*1.31 + y/4.0f)*2;
-        sprites_layer.sprites[1].y = 100 + cosf(app.current_time*2.2 + 0.25*sinf(y/4.0))*10 + y*0.25;
+        app.ppu.layers[3].sprite_layer.sprites[1].x = 100 + sinf(app.current_time*1.31 + y/4.0f)*2;
+        app.ppu.layers[3].sprite_layer.sprites[1].y = 100 + cosf(app.current_time*2.2 + 0.25*sinf(y/4.0))*10 + y*0.25;
         //layer_direct.scroll_x = 2*sinf(app.current_time*1.31 + y/4.0f)*2;
         //layer_direct.scroll_y = 10 + sinf(app.current_time*1.3 + y/4.0f);
         int h = y - 80;
@@ -356,17 +358,16 @@ void init_ppu() {
             float f_x = p_sin;
             float f_y = p_cos;
             
-            gen16x_ppu_layer_tiles* layer_tiles = (gen16x_ppu_layer_tiles*)(app.ppu.vram + app.ppu.layers[1].vram_offset);
             
-            layer_tiles->transform.a = (int)(((1 << layer_tiles->transform.base)* 1.0f *  p_cos)*lambda);
-            layer_tiles->transform.b = (int)(((1 << layer_tiles->transform.base)* 1.0f *  p_sin)*lambda);
-            layer_tiles->transform.c = (int)(((1 << layer_tiles->transform.base)* 1.0f * -p_sin)*lambda);
-            layer_tiles->transform.d = (int)(((1 << layer_tiles->transform.base)* 1.0f *  p_cos)*lambda);
+            app.ppu.layers[1].tile_layer.transform.a = (int)(((1 << app.ppu.layers[1].tile_layer.transform.base)* 1.0f *  p_cos)*lambda);
+            app.ppu.layers[1].tile_layer.transform.b = (int)(((1 << app.ppu.layers[1].tile_layer.transform.base)* 1.0f *  p_sin)*lambda);
+            app.ppu.layers[1].tile_layer.transform.c = (int)(((1 << app.ppu.layers[1].tile_layer.transform.base)* 1.0f * -p_sin)*lambda);
+            app.ppu.layers[1].tile_layer.transform.d = (int)(((1 << app.ppu.layers[1].tile_layer.transform.base)* 1.0f *  p_cos)*lambda);
             
-            layer_tiles->transform.x =  (int)(player.pos_x - 0*f_x*lambda);
-            layer_tiles->transform.y =  (int)(player.pos_y - 0*f_y*lambda);
-            layer_tiles->transform.cx = (int)(player.pos_x - 0*f_x*lambda + app.ppu.screen_width / 2);
-            layer_tiles->transform.cy = (int)(player.pos_y - 0*f_y*lambda + app.ppu.screen_height - 16);
+            app.ppu.layers[1].tile_layer.transform.x = (int)(player.pos_x - 0 * f_x*lambda);
+            app.ppu.layers[1].tile_layer.transform.y = (int)(player.pos_y - 0 * f_y*lambda);
+            app.ppu.layers[1].tile_layer.transform.cx = (int)(player.pos_x - 0 * f_x*lambda + app.ppu.screen_width / 2);
+            app.ppu.layers[1].tile_layer.transform.cy = (int)(player.pos_y - 0*f_y*lambda + app.ppu.screen_height - 16);
 
             
 
@@ -375,8 +376,12 @@ void init_ppu() {
         }
     };
     app.ppu.framebuffer_offset = offset;
+
     
-    printf("Initialized %d bytes of vram\n", (int)sizeof(app.ppu));
+    printf("Initialized %d bytes of PPU vram\n", (int)sizeof(app.ppu.vram));
+    printf("Initialized %d bytes of PPU cgram\n", (int)sizeof(app.ppu.cgram32));
+    printf("Initialized %d bytes of PPU layer registers\n", (int)sizeof(app.ppu.layers));
+
 }
 
 
@@ -423,7 +428,7 @@ bool init_sdl() {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     
     
@@ -455,8 +460,8 @@ bool init_opengl() {
         return false;
     }
     
-    if (!GLEW_VERSION_3_3) {
-        printf("Error: OpenGL 3.3 not supported.\n");
+    if (!GLEW_VERSION_3_1) {
+        printf("Error: OpenGL 3.1 not supported.\n");
         return false;
     }
     glGetError();
@@ -495,7 +500,7 @@ bool init_opengl() {
     
     err = glGetError();
     if (err) {
-        printf("OpenGL Error 1 - %d\n", err);
+        printf("OpenGL Error 1 - %d\n", (int)err);
         return false;
     }
     
@@ -548,7 +553,7 @@ bool init_opengl() {
     
     err = glGetError();
     if (err) {
-        printf("OpenGL Error 2 - %d\n", err);
+        printf("OpenGL Error 2 - %d\n", (int)err);
         app.quitting = true;
     }
     
@@ -809,9 +814,9 @@ int main() {
         
         gen16x_ppu_layer_direct& direct_layer = *(gen16x_ppu_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
         
-        direct_layer.scroll_y = 0;
-        direct_layer.scroll_x = (short)((-player.rot/120.0f)*app.ppu.screen_width);
-        direct_layer.flags |= GEN16X_FLAG_REPEAT_X;
+        app.ppu.layers[0].direct_layer.scroll_y = 0;
+        app.ppu.layers[0].direct_layer.scroll_x = (short)((-player.rot/120.0f)*app.ppu.screen_width);
+        app.ppu.layers[0].direct_layer.flags |= GEN16X_FLAG_REPEAT_X;
         
         
         app.ppu.layers[0].layer_type = GEN16X_LAYER_DIRECT;
@@ -824,16 +829,15 @@ int main() {
         static int frame_no = 0;
 
         frame_no++;
-        sprites_layer.sprites[0].tile_index = 16*(int(frame_no/100.0)%20);
+        app.ppu.layers[3].sprite_layer.sprites[0].tile_index = 16*(int(frame_no/100.0)%20);
 
         //sprites_layer.sprites[1].tile_index = 16 * ((int(frame_no / 100.0) + 3)  % 20);
-        sprites_layer.sprites[2].tile_index = 16 * ((int(frame_no / 500.0) + 6) % 20);
-        sprites_layer.sprites[3].tile_index = 16 * ((int(frame_no / 500.0) + 9) % 20);
+        app.ppu.layers[3].sprite_layer.sprites[2].tile_index = 16 * ((int(frame_no / 500.0) + 6) % 20);
+        app.ppu.layers[3].sprite_layer.sprites[3].tile_index = 16 * ((int(frame_no / 500.0) + 9) % 20);
 
-        sprites_layer.sprites[1].x = -16 + app.ppu.screen_width / 2 + cosf(-frame_no / 5000.0f)*app.ppu.screen_width / 2;
-        sprites_layer.sprites[1].y = -16 + app.ppu.screen_height / 2 + sinf(-frame_no / 5000.0f)*app.ppu.screen_height / 2;
-        //layer_tiles->transform.base = 12;
-        
+        app.ppu.layers[3].sprite_layer.sprites[1].x = -16 + app.ppu.screen_width / 2 + cosf(-frame_no / 5000.0f)*app.ppu.screen_width / 2;
+        app.ppu.layers[3].sprite_layer.sprites[1].y = -16 + app.ppu.screen_height / 2 + sinf(-frame_no / 5000.0f)*app.ppu.screen_height / 2;
+
         
         gen16x_ppu_render(&app.ppu);
         if (app.opengl_enabled) {

@@ -1,7 +1,7 @@
 #pragma once
 #define SHADER_TEXT(a) #a
 const char * g_quad_vsh = R"(
-    #version 330 core
+    #version 140
 
     in vec2 position;
     out vec2 texcoord;
@@ -19,7 +19,7 @@ const char * g_quad_vsh = R"(
 
 
 const char * g_quad_psh = R"(
-    #version 330 core
+    #version 140
     uniform sampler2D texture2;
     uniform sampler2D texture;
     uniform vec2 display_size;

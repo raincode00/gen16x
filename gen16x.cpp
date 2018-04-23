@@ -1,3 +1,4 @@
+#include <string.h>
 #include "gen16x.h"
 
 inline int clamp0(int x, int b) {
@@ -34,112 +35,120 @@ gen16x_color32 argb16_to_argb32(unsigned short c) {
 }
 
 template<int blendmode>
-inline void write_pixel(const gen16x_color32 &src, gen16x_color32 &dst_color) {
-        int dst[4];
-    
-        switch (blendmode) {
-        case GEN16X_BLENDMODE_NONE:
-            if (src.a) {
-                dst_color = src;
-            }
-            return;
-        case GEN16X_BLENDMODE_ALPHA:
-            dst[1] = dst_color.r;
-            dst[2] = dst_color.g;
-            dst[3] = dst_color.b;
-            dst[1] = (((int)src.r*src.a) + ((int)dst[1] * (255 - src.a))) / 255;
-            dst[2] = (((int)src.g*src.a) + ((int)dst[2] * (255 - src.a))) / 255;
-            dst[3] = (((int)src.b*src.a) + ((int)dst[3] * (255 - src.a))) / 255;
-            dst_color.r = (unsigned char)dst[1];
-            dst_color.g = (unsigned char)dst[2];
-            dst_color.b = (unsigned char)dst[3];
-            return;
-                
-        case GEN16X_BLENDMODE_ADD:
-            dst[1] = dst_color.r;
-            dst[2] = dst_color.g;
-            dst[3] = dst_color.b;
-            dst[1] = (int)src.r + dst[1];
-            dst[2] = (int)src.g + dst[2];
-            dst[3] = (int)src.b + dst[3];
-            dst[1] = dst[1] > 255 ? 255 : dst[1];
-            dst[2] = dst[2] > 255 ? 255 : dst[2];
-            dst[3] = dst[3] > 255 ? 255 : dst[3];
-            dst_color.r = (unsigned char)dst[1];
-            dst_color.g = (unsigned char)dst[2];
-            dst_color.b = (unsigned char)dst[3];
-            return;
-            
-        case GEN16X_BLENDMODE_MULTIPLY:
-            dst[1] = dst_color.r;
-            dst[2] = dst_color.g;
-            dst[3] = dst_color.b;
-            dst[1] = (int)src.r * dst[1] / 255;
-            dst[2] = (int)src.g * dst[2] / 255;
-            dst[3] = (int)src.b * dst[3] / 255;
-            dst_color.r = (unsigned char)dst[1];
-            dst_color.g = (unsigned char)dst[2];
-            dst_color.b = (unsigned char)dst[3];
-            return;
+inline void write_pixel(const gen16x_color32 &src, gen16x_color32 &dst_color);
 
-        case GEN16X_BLENDMODE_SUBTRACT:
-            dst[1] = dst_color.r;
-            dst[2] = dst_color.g;
-            dst[3] = dst_color.b;
-            dst[1] = dst[1] - (int)src.r;
-            dst[2] = dst[2] - (int)src.g;
-            dst[3] = dst[3] - (int)src.b;
-            dst[1] = dst[1] < 0 ? 0 : dst[1];
-            dst[2] = dst[2] < 0 ? 0 : dst[2];
-            dst[3] = dst[3] < 0 ? 0 : dst[3];
-            dst_color.r = (unsigned char)dst[1];
-            dst_color.g = (unsigned char)dst[2];
-            dst_color.b = (unsigned char)dst[3];
-            return;
-        }
-    
-    
+template<>
+inline void write_pixel<GEN16X_BLENDMODE_NONE>(const gen16x_color32 &src, gen16x_color32 &dst_color) {
+    if (src.a) {
+        dst_color = src;
+    }
 }
+template<>
+inline void write_pixel<GEN16X_BLENDMODE_ALPHA>(const gen16x_color32 &src, gen16x_color32 &dst_color) {
+    int dst[4];
+
+    dst[1] = dst_color.r;
+    dst[2] = dst_color.g;
+    dst[3] = dst_color.b;
+    dst[1] = (((int)src.r*src.a) + ((int)dst[1] * (255 - src.a))) / 255;
+    dst[2] = (((int)src.g*src.a) + ((int)dst[2] * (255 - src.a))) / 255;
+    dst[3] = (((int)src.b*src.a) + ((int)dst[3] * (255 - src.a))) / 255;
+    dst_color.r = (unsigned char)dst[1];
+    dst_color.g = (unsigned char)dst[2];
+    dst_color.b = (unsigned char)dst[3];
+    return;
+}
+
+template<>
+inline void write_pixel<GEN16X_BLENDMODE_ADD>(const gen16x_color32 &src, gen16x_color32 &dst_color) {
+    int dst[4];
+    dst[1] = dst_color.r;
+    dst[2] = dst_color.g;
+    dst[3] = dst_color.b;
+    dst[1] = (int)src.r*src.a/255 + dst[1];
+    dst[2] = (int)src.g*src.a/255 + dst[2];
+    dst[3] = (int)src.b*src.a/255 + dst[3];
+    dst[1] = dst[1] > 255 ? 255 : dst[1];
+    dst[2] = dst[2] > 255 ? 255 : dst[2];
+    dst[3] = dst[3] > 255 ? 255 : dst[3];
+    dst_color.r = (unsigned char)dst[1];
+    dst_color.g = (unsigned char)dst[2];
+    dst_color.b = (unsigned char)dst[3];
+    return;
+}
+template<>
+inline void write_pixel<GEN16X_BLENDMODE_MULTIPLY>(const gen16x_color32 &src, gen16x_color32 &dst_color) {
+    int dst[4];
+    dst[1] = dst_color.r;
+    dst[2] = dst_color.g;
+    dst[3] = dst_color.b;
+    dst[1] = (int)src.a*((int)src.r)* dst[1] /(255*255) + (255 - (int)src.a)*dst[1]/255;
+    dst[2] = (int)src.a*((int)src.g)* dst[2] /(255*255) + (255 - (int)src.a)*dst[2]/255;
+    dst[3] = (int)src.a*((int)src.b)* dst[3] /(255*255) + (255 - (int)src.a)*dst[3]/255;
+    dst_color.r = (unsigned char)(dst[1]);
+    dst_color.g = (unsigned char)(dst[2]);
+    dst_color.b = (unsigned char)(dst[3]);
+    return;
+}
+
+template<>
+inline void write_pixel<GEN16X_BLENDMODE_SUBTRACT>(const gen16x_color32 &src, gen16x_color32 &dst_color) {
+    int dst[4];
+    dst[1] = dst_color.r;
+    dst[2] = dst_color.g;
+    dst[3] = dst_color.b;
+    dst[1] = dst[1] - (int)src.r*src.a/255;
+    dst[2] = dst[2] - (int)src.g*src.a/255;
+    dst[3] = dst[3] - (int)src.b*src.a/255;
+    dst[1] = dst[1] < 0 ? 0 : dst[1];
+    dst[2] = dst[2] < 0 ? 0 : dst[2];
+    dst[3] = dst[3] < 0 ? 0 : dst[3];
+    dst_color.r = (unsigned char)dst[1];
+    dst_color.g = (unsigned char)dst[2];
+    dst_color.b = (unsigned char)dst[3];
+    return;
+}
+  
 
 template<int blendmode>
 void render_row_direct(gen16x_ppu_state* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
     gen16x_ppu_layer_direct * layer_direct = (gen16x_ppu_layer_direct*)(ppu->vram + layer.vram_offset);
     
-    bool rep_x = (bool)(layer_direct->flags & GEN16X_FLAG_REPEAT_X);
-    bool rep_y = (bool)(layer_direct->flags & GEN16X_FLAG_REPEAT_Y);
-    int y0 = row_index + layer_direct->scroll_y;
-    bool oob_y = (y0 < 0 || y0 >= layer_direct->height);
+    bool rep_x = (bool)(layer.direct_layer.flags & GEN16X_FLAG_REPEAT_X);
+    bool rep_y = (bool)(layer.direct_layer.flags & GEN16X_FLAG_REPEAT_Y);
+    int y0 = row_index + layer.direct_layer.scroll_y;
+    bool oob_y = (y0 < 0 || y0 >= layer.direct_layer.height);
 
     if (oob_y) {
         if (rep_y) {
-            y0 = y0 % layer_direct->width;
+            y0 = y0 % layer.direct_layer.width;
         } else {
             return;
         }
     }
 
-    unsigned char* row_src = &layer_direct->map[y0*layer_direct->width];
+    unsigned char* row_src = &layer_direct->map[y0*layer.direct_layer.width];
 
-    if (!rep_x && -layer_direct->scroll_x > col_start) {
-        col_start = -layer_direct->scroll_x;
+    if (!rep_x && -layer.direct_layer.scroll_x > col_start) {
+        col_start = -layer.direct_layer.scroll_x;
     }
-    if (!rep_x && layer_direct->width - layer_direct->scroll_x < col_end) {
-        col_end = layer_direct->width - layer_direct->scroll_x;
+    if (!rep_x && layer.direct_layer.width - layer.direct_layer.scroll_x < col_end) {
+        col_end = layer.direct_layer.width - layer.direct_layer.scroll_x;
     }
-    int scroll_wrap = -layer_direct->scroll_x;
+    int scroll_wrap = -layer.direct_layer.scroll_x;
     if (rep_x) {
-        scroll_wrap = (scroll_wrap % layer_direct->width);
+        scroll_wrap = (scroll_wrap % layer.direct_layer.width);
     }
     
     for (int x = col_start; x < col_end; ++x) {
         int x0 = x - scroll_wrap;
         
-        bool oob_x = (x0 < 0 || x0 >= layer_direct->width);
+        bool oob_x = (x0 < 0 || x0 >= layer.direct_layer.width);
         if (oob_x) {
             if (rep_x) {
                 int x_sign = (int)(x0 > 0) - (int)(x0 < 0);
-                x0 = x0 - x_sign*layer_direct->width;
+                x0 = x0 - x_sign* layer.direct_layer.width;
             } else {
                 continue;
             }
@@ -160,10 +169,10 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
     const int tile_index_shift = 4 + tile_size_shift;
     const unsigned int tile_size_mask = tile_size - 1;
 
-    int tilemap_width_shift = layer_tiles->tilemap_width;
+    int tilemap_width_shift = layer.tile_layer.tilemap_width;
     int tilemap_wh[2] = {
         1 << tilemap_width_shift,
-        1 << layer_tiles->tilemap_height
+        1 << layer.tile_layer.tilemap_height
     };
     
     int tilemap_wh_mask[2] = {
@@ -177,12 +186,12 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
     };
 
     bool clamp[2] = {
-        (bool)(layer_tiles->flags & GEN16X_FLAG_CLAMP_X),
-        (bool)(layer_tiles->flags & GEN16X_FLAG_CLAMP_Y)
+        (bool)(layer.tile_layer.flags & GEN16X_FLAG_CLAMP_X),
+        (bool)(layer.tile_layer.flags & GEN16X_FLAG_CLAMP_Y)
     };
     bool rep[2] = {
-                (bool)(layer_tiles->flags & GEN16X_FLAG_REPEAT_X),
-                (bool)(layer_tiles->flags & GEN16X_FLAG_REPEAT_Y)
+                (bool)(layer.tile_layer.flags & GEN16X_FLAG_REPEAT_X),
+                (bool)(layer.tile_layer.flags & GEN16X_FLAG_REPEAT_Y)
     };
 
     bool not_clamp_or_rep[2] = {
@@ -190,9 +199,9 @@ void render_row_tiles(gen16x_ppu_state* ppu, int layer_index, int row_index, int
         !clamp[1] && !rep[1],
     };
 
-    bool apply_tf = (bool)(layer_tiles->flags & GEN16X_FLAG_TRANSFORM);
+    bool apply_tf = (bool)(layer.tile_layer.flags & GEN16X_FLAG_TRANSFORM);
 
-    gen16x_ppu_transform tf = layer_tiles->transform;
+    gen16x_ppu_transform tf = layer.tile_layer.transform;
 
     for (int x = col_start; x < col_end; ++x) {
 
@@ -261,7 +270,7 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
     int num_sprites = 0;
 
     for (int s = 0; s < GEN16X_MAX_SPRITES; s++) {
-        gen16x_ppu_sprite& sprite = layer_sprites->sprites[s];
+        gen16x_ppu_sprite& sprite = layer.sprite_layer.sprites[s];
         
         if (!(sprite.flags & GEN16X_FLAG_SPRITE_ENABLED)) {
             continue;
@@ -290,7 +299,7 @@ void render_row_sprites(gen16x_ppu_state* ppu, int layer_index, int row_index, i
 
     for (int c = 0; c < num_sprites; c++) {
         int sprite_index = sprites_to_draw[c];
-        gen16x_ppu_sprite& sprite = layer_sprites->sprites[sprite_index];
+        gen16x_ppu_sprite& sprite = layer.sprite_layer.sprites[sprite_index];
 
         int s_sw = (sprite.size & GEN16X_SPRITE_WIDTH_MASK);
         int s_sh = ((sprite.size & GEN16X_SPRITE_HEIGHT_MASK) >> 4);
@@ -338,12 +347,13 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
         if (ppu->row_callback) {
             ppu->row_callback(y);
         }
+        
         unsigned int* row_pixels = (unsigned int*)(ppu->vram + ppu->framebuffer_offset) + y*ppu->screen_width;
-        for (int i = 0; i < ppu->screen_width; ++i) {
+        /*for (int i = 0; i < ppu->screen_width; ++i) {
             row_pixels[i] = 0;
-        }
+        }*/
 
-        //memset(row_pixels, 0, ppu->screen_width*4);
+        memset(row_pixels, 0, ppu->screen_width*4);
         
         
         
@@ -378,9 +388,9 @@ void gen16x_ppu_render(gen16x_ppu_state* ppu) {
             case GEN16X_LAYER_TILES:
             {
                 gen16x_ppu_layer_tiles * layer_tiles = (gen16x_ppu_layer_tiles*)(ppu->vram + ppu->layers[l].vram_offset);
-                if (layer_tiles->tile_size == GEN16X_TILE8) {
+                if (ppu->layers[l].tile_layer.tile_size == GEN16X_TILE8) {
                     ALL_BLENDMODE_SWITCH(TILES8);
-                } else if (layer_tiles->tile_size == GEN16X_TILE16) {
+                } else if (ppu->layers[l].tile_layer.tile_size == GEN16X_TILE16) {
                     ALL_BLENDMODE_SWITCH(TILES16)
                 }
                 break;
