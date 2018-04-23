@@ -55,7 +55,7 @@ include_directories(${GLEW_INCLUDE_DIR})
   target_link_libraries(gen16x ${GLEW})
 
 if(UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -msse2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -msse2 -fno-stack-protector")
     find_package(OpenGL REQUIRED)
     target_link_libraries(gen16x ${OPENGL_LIBRARIES})
     add_definitions(-DENABLE_SSE2=1)
