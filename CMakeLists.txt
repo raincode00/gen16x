@@ -78,6 +78,6 @@ if(MSVC)
 	# set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB /noentry")
 	target_link_libraries(gen16x opengl32)
 	add_definitions(/arch:SSE2)
-	add_custom_command(TARGET gen16x POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/SDL2.dll ${CMAKE_BINARY_DIR}/SDL2.dll)
+	add_custom_command(TARGET gen16x POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/SDL2.dll  $<TARGET_FILE_DIR:gen16x>/SDL2.dll)
 endif()
 
