@@ -39,14 +39,17 @@ player_state player;
 
 struct application_state {
     gen16x_ppu_state ppu;
-    
+    Timer timer;
+
     SDL_Window* window;
+    SDL_Surface* surface;
     SDL_GLContext context;
     
     bool quitting = false;
     double frame_no = 0.0;
     double delta_time = 0.0;
     
+    bool opengl_enabled;
     uint32_t quad_va;
     uint32_t quad_vbo;
     uint32_t framebuffer_texture;
@@ -54,7 +57,7 @@ struct application_state {
     int texture_uni;
     int display_size_uni;
     int texture_size_uni;
-    Timer timer;
+    
     
     
 };
@@ -429,7 +432,7 @@ bool init_sdl() {
     //SDL_SetWindowFullscreen(g_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     
     SDL_AddEventWatch(watch, NULL);
-    
+    app.surface = SDL_CreateRGBSurfaceWithFormat(0, app.ppu.screen_width, app.ppu.screen_height, 32, SDL_PIXELFORMAT_BGRA32);
     return true;
 }
 
@@ -616,6 +619,92 @@ void render_opengl() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
+
+void render_sdl() {
+
+
+
+
+
+    /*glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, app.ppu.screen_width, app.ppu.screen_height,
+        GL_BGRA, GL_UNSIGNED_BYTE, app.ppu.vram + app.ppu.framebuffer_offset);*/
+
+
+
+    int d_w, d_h;
+    int w_w, w_h;
+
+    SDL_GetWindowSize(app.window, &w_w, &w_h);
+    SDL_GL_GetDrawableSize(app.window, &d_w, &d_h);
+
+    float dpi_scale_w = (float)d_w / (float)w_w;
+    float dpi_scale_h = (float)d_h / (float)w_h;
+
+    float scale_w = float(d_w) / float(app.ppu.screen_width);
+    float scale_h = float(d_h) / float(app.ppu.screen_height);
+
+    int orig_w = d_w;
+    int orig_h = d_h;
+
+    float scale = (scale_w < scale_h) ? scale_w : scale_h;
+
+    d_w = (int)((float)app.ppu.screen_width*scale / 2) * 2;
+    d_h = (int)((float)app.ppu.screen_height*scale / 2) * 2;
+
+    if (d_w < app.ppu.screen_width || d_w < app.ppu.screen_height) {
+        d_w = (float)app.ppu.screen_width;
+        d_h = (float)app.ppu.screen_height;
+    }
+
+
+    int offset_w = (orig_w - d_w) / 2;
+    int offset_h = (orig_h - d_h) / 2;
+    SDL_Surface* window_surface = SDL_GetWindowSurface(app.window);
+
+    /*SDL_LockSurface(app.surface);
+    memcpy(app.surface->pixels, app.ppu.vram + app.ppu.framebuffer_offset, app.ppu.screen_width*app.ppu.screen_height*4);
+    SDL_UnlockSurface(app.surface);
+    SDL_Rect rect;
+    rect.x = offset_w;
+    rect.y = offset_h;
+    rect.w = d_w;
+    rect.h = d_h;
+    //SDL_BlitScaled(app.surface, NULL, window_surface, &rect);
+    */
+    
+    float ratio_x = float(app.ppu.screen_width)/float(window_surface->w);
+    float ratio_y = float(app.ppu.screen_height)/float(window_surface->h);
+    SDL_LockSurface(window_surface);
+    int prev_y0 = -1;
+    for (int y = 0; y < window_surface->h; ++y) {
+        
+        int y0 = ratio_x * y;
+        unsigned int* dst_row = (unsigned int*)window_surface->pixels + y*window_surface->pitch/4;
+        unsigned int* src_row = (unsigned int*)(app.ppu.vram + app.ppu.framebuffer_offset) + y0*app.ppu.screen_width;
+
+        if (prev_y0 == y0) {
+            memcpy(dst_row, dst_row - window_surface->pitch / 4, window_surface->pitch);
+            continue;
+        }
+        unsigned int prev_pixel = 0;
+        prev_y0 = y0;
+        int prev_x0 = -1;
+        for (int x = 0; x < window_surface->w; ++x) {
+            int x0 = ratio_x * x;
+            if (prev_x0 == x0) {
+                dst_row[x] = prev_pixel;
+                continue;
+            }
+            prev_x0 = x0;
+            prev_pixel = src_row[x0];
+            dst_row[x] = prev_pixel;
+        }
+    }
+    SDL_UnlockSurface(window_surface);
+    SDL_UpdateWindowSurface(app.window);
+}
+
+
 void handle_resize(int new_w, int new_h) {
     
     
@@ -717,7 +806,7 @@ int main() {
     
     init_sdl();
     
-    init_opengl();
+    app.opengl_enabled = init_opengl();
     
     
     while (!app.quitting) {
@@ -754,13 +843,17 @@ int main() {
         
         
         gen16x_ppu_render(&app.ppu);
-        render_opengl();
+        if (app.opengl_enabled) {
+            render_opengl();
+        } else {
+            render_sdl();
+        }
         
         if (app.timer.elapsed() > 1.0 && app.frame_no > 0.0) {
             char fps_text[32];
             app.delta_time = (float)(app.timer.elapsed() / app.frame_no);
             sprintf(fps_text, "FPS: %0.2f\n", app.frame_no / app.timer.elapsed());
-            //printf("%s", fps_text);
+            printf("%s", fps_text);
             gen16x_ppu_layer_tiles& tile_layer2 = *(gen16x_ppu_layer_tiles*)(app.ppu.vram + app.ppu.layers[2].vram_offset);
             strncpy((char*)tile_layer2.tile_map, fps_text, 32);
             
@@ -769,12 +862,16 @@ int main() {
             app.timer.reset();
         }
         app.frame_no++;
-        SDL_GL_SwapWindow(app.window);
+        if (app.opengl_enabled) {
+            SDL_GL_SwapWindow(app.window);
+        }
         
     }
     
-    
-    cleanup_opengl();
+    if (app.opengl_enabled) {
+        cleanup_opengl();
+    }
+
     cleanup_sdl();
     
     SDL_Quit();
