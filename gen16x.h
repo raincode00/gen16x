@@ -59,6 +59,15 @@
 
 #define GEN16X_MAKE_SPRITE_SIZE(w, h)   (((w) & GEN16X_SPRITE_WIDTH_MASK) | ((h) << 4))
 
+#define GEN16X_MAX_DSP_CHANNELS     16
+
+#define GEN16X_DSP_GAIN_NONE        0x0
+#define GEN16X_DSP_GAIN_DIRECT      0x1
+#define GEN16X_DSP_GAIN_LINEAR      0x2
+#define GEN16X_DSP_GAIN_EXPONENTIAL 0x3
+#define GEN16X_DSP_MAX_GAIN         16384
+#define GEN16X_DSP_MAX_VOLUME       16384
+
 
 #ifdef _MSC_VER
 #define GEN16X_PACK_STRUCT(name) \
@@ -169,3 +178,61 @@ GEN16X_PACK_STRUCT (gen16x_ppu) {
 
 void gen16x_ppu_render(gen16x_ppu* ppu);
 
+
+
+
+
+GEN16X_PACK_STRUCT(gen16x_dsp_channel) {
+   
+    unsigned char enabled;
+    unsigned char mute;
+    
+    short l_volume;
+    short r_volume;
+    short pitch;
+    
+    unsigned char reverb_enable;
+    short reverb_delay;
+    short reverb_count;
+    short reverb_l_volume;
+    short reverb_r_volume;
+    unsigned int reverb_offset;
+    unsigned int reverb_size;
+    
+    
+    unsigned char gain_type;
+    short gain_rate;
+    short gain_target;
+    short current_gain_value;
+    
+    unsigned char voice_loop;
+    unsigned char voice_playing;
+    unsigned char stop;
+    unsigned int voice_offset;
+    unsigned int voice_samples;
+    unsigned int voice_time;
+    
+    
+};
+
+GEN16X_PACK_STRUCT(gen16x_spu) {
+    
+    unsigned char flushed;
+    unsigned char underrun;
+    int l_volume;
+    int r_volume;
+    
+    int time_setting;
+    int time_counter;
+    int current_output_position;
+    
+    int output_offset;
+    int output_samples;
+    gen16x_dsp_channel channels[GEN16X_MAX_DSP_CHANNELS];
+    
+    short sram[0x40000];
+};
+
+
+
+void gen16x_spu_tick(gen16x_spu* spu);

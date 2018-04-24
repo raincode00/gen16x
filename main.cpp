@@ -6,12 +6,13 @@
 
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
+#include <SDL_audio.h>
 #include <GL/glew.h>
 
 #include "gen16x.h"
 
 #include "shaders.h"
-
+const int SAMPLE_RATE = 44100;
 
 class Timer {
 public:
@@ -40,11 +41,17 @@ player_state player;
 
 struct application_state {
     gen16x_ppu ppu;
+    gen16x_spu spu;
     Timer timer;
 
     SDL_Window* window;
     SDL_Surface* surface;
     SDL_GLContext context;
+    
+    SDL_AudioSpec audio_want;
+    SDL_AudioSpec audio_have;
+    int audio_sample_nr = 0;
+    
     
     bool quitting = false;
     double frame_no = 0.0;
@@ -384,6 +391,41 @@ void init_ppu() {
 }
 
 
+void init_spu() {
+    memset(&app.spu, 0, sizeof(app.spu));
+    
+    app.spu.output_offset = 1024*32*2;
+    app.spu.output_samples = 2048;
+    app.spu.l_volume = GEN16X_DSP_MAX_VOLUME;
+    app.spu.r_volume = GEN16X_DSP_MAX_VOLUME;
+
+    app.spu.channels[0].enabled = 1;
+    app.spu.channels[0].l_volume = GEN16X_DSP_MAX_VOLUME;
+    app.spu.channels[0].r_volume = GEN16X_DSP_MAX_VOLUME;
+    
+    app.spu.channels[0].pitch = 256;
+    app.spu.channels[0].gain_rate = 64;
+    app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_NONE;
+    
+    app.spu.channels[0].current_gain_value = 0;
+    app.spu.channels[0].voice_offset = 0;
+    app.spu.channels[0].voice_loop = 1;
+    app.spu.channels[0].voice_samples = 1024*32;
+    short* voice =  (short*)app.spu.sram;
+    for (int i = 0; i < app.spu.channels[0].voice_samples; i++) {
+        float fade_in = i/8000.0f;
+        fade_in = fade_in > 1.0 ? 1.0 : fade_in;
+        
+        float fade_out = (app.spu.channels[0].voice_samples-i)/8000.0f;
+        fade_out = fade_out > 1.0 ? 1.0 : fade_in;
+        
+        short signal = 30000.0*sinf(440.0f*M_PI*float(i)/app.spu.channels[0].voice_samples);
+        voice[(i*2)] = signal;
+        voice[(i*2) + 1] = signal;
+    }
+}
+
+
 bool compile_shader(uint32_t shader_type, uint32_t shader, const char* shader_source) {
     glShaderSource(shader, 1, &shader_source, 0);
     
@@ -418,9 +460,8 @@ int SDLCALL watch(void *userdata, SDL_Event* event) {
 }
 
 
-
 bool init_sdl() {
-    if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO) != 0) {
+    if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return 1;
     }
@@ -441,11 +482,48 @@ bool init_sdl() {
     
     SDL_AddEventWatch(watch, NULL);
     app.surface = SDL_CreateRGBSurfaceWithFormat(0, app.ppu.screen_width, app.ppu.screen_height, 32, SDL_PIXELFORMAT_BGRA32);
+    
+    
+    
+    auto audio_callback = [](void *user_data, Uint8 *raw_buffer, int bytes) {
+        Sint16 *buffer = (Sint16*)raw_buffer;
+        int length = bytes / 2; // 2 bytes per sample for AUDIO_S16SYS
+        int &sample_nr(*(int*)user_data);
+        short* output = app.spu.sram + app.spu.output_offset;
+        
+        for(int i = 0; i < length; i++, sample_nr++) {
+            gen16x_spu_tick(&app.spu);
+            buffer[i] = (output[0] + output[1])/2;
+            /*if (((i&0xF) == 0) && buffer[i]) {
+                printf("buffer:%d\n", int(buffer[i]));
+            }*/
+            app.spu.flushed = true;
+        }
+        //printf("Flushed sound: %d\n", app.spu.channels[0].current_gain_value);
+        
+    };
+    
+    
+    
+    
+    
+    app.audio_want.freq = SAMPLE_RATE; // number of samples per second
+    app.audio_want.format = AUDIO_S16SYS; // sample type (here: signed short i.e. 16 bit)
+    app.audio_want.channels = 1; // only one channel
+    app.audio_want.samples = 2048; // buffer-size
+    app.audio_want.callback = audio_callback; // function SDL calls periodically to refill the buffer
+    app.audio_want.userdata = &app.audio_sample_nr; // counter, keeping track of current sample number
+    
+    if(SDL_OpenAudio(&app.audio_want, &app.audio_have) != 0) SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Failed to open audio: %s", SDL_GetError());
+    if(app.audio_want.format != app.audio_have.format) SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Failed to get the desired AudioSpec");
+
+    
     return true;
 }
 
 void cleanup_sdl() {
     
+    SDL_CloseAudio();
     SDL_DelEventWatch(watch, NULL);
     SDL_GL_DeleteContext(app.context);
     SDL_DestroyWindow(app.window);
@@ -751,6 +829,7 @@ void handle_sdl_events() {
 }
 
 void handle_sdl_input() {
+    static bool keydown[256] = {false};
     
     const Uint8 *kbstate = SDL_GetKeyboardState(NULL);
     
@@ -790,6 +869,28 @@ void handle_sdl_input() {
         player.height += 4.0f*speed_scale*app.delta_time;
     }
     
+    if (kbstate[SDL_SCANCODE_R]) {
+        player.height += 4.0f*speed_scale*app.delta_time;
+    }
+    if (kbstate[SDL_SCANCODE_Z]) {
+        if (!keydown[SDL_SCANCODE_Z]) {
+            keydown[SDL_SCANCODE_Z] = true;
+            app.spu.channels[0].voice_playing = 1;
+            app.spu.channels[0].gain_target = GEN16X_DSP_MAX_GAIN;
+            app.spu.channels[0].gain_rate = 128;
+            //app.spu.channels[0].voice_time = 0;
+            //app.spu.channels[0].current_gain_value = 0;
+            app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_EXPONENTIAL;
+            printf("Keydown\n");
+        }
+    } else if (keydown[SDL_SCANCODE_Z]) {
+        keydown[SDL_SCANCODE_Z] = false;
+        app.spu.channels[0].gain_target = 0;
+        app.spu.channels[0].gain_rate = 1;
+        app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_EXPONENTIAL;
+        //app.spu.channels[0].stop = 1;
+        printf("Keyup\n");
+    }
 }
 
 int main() {
@@ -800,14 +901,19 @@ int main() {
     player.rot = 0;
     
     init_ppu();
+    init_spu();
     
     init_sdl();
+    
+    
+    
+    SDL_PauseAudio(0);
     
     app.opengl_enabled = init_opengl();
     
     
     while (!app.quitting) {
-        
+        SDL_PauseAudio(0);
         handle_sdl_events();
         handle_sdl_input();
         
@@ -859,7 +965,7 @@ int main() {
             
             app.frame_no = 0.0;
             app.timer.reset();
-
+            
             
         }
         app.frame_no++;
@@ -872,7 +978,7 @@ int main() {
     if (app.opengl_enabled) {
         cleanup_opengl();
     }
-
+    SDL_PauseAudio(1);
     cleanup_sdl();
     
     SDL_Quit();

@@ -417,3 +417,116 @@ void gen16x_ppu_render(gen16x_ppu* ppu) {
         }
     }
 }
+
+
+
+
+
+
+
+void gen16x_spu_tick(gen16x_spu* spu) {
+    
+    int r_acc_signal = 0;
+    int l_acc_signal = 0;
+    short* output =  (spu->sram + spu->output_offset);
+    if (spu->flushed) {
+        spu->current_output_position = 0;
+        spu->flushed = 0;
+    }
+    
+    for (int i = 0; i < GEN16X_MAX_DSP_CHANNELS; i++) {
+        gen16x_dsp_channel &dsp = spu->channels[i];
+        
+        if (!dsp.enabled) {
+            continue;
+        }
+        short* voice = (spu->sram + dsp.voice_offset);
+        
+        
+        int voice_time = (dsp.voice_time)/256;
+        
+        if (dsp.stop) {
+            if (dsp.voice_playing) {
+                dsp.voice_playing = 0;
+            }
+            dsp.stop = 0;
+        }
+        if (dsp.voice_playing && (voice_time) >= dsp.voice_samples) {
+            if (dsp.voice_loop) {
+                dsp.voice_time = 0;
+            } else {
+                dsp.voice_playing = 0;
+            }
+            
+        }
+        //if ((spu->time_counter & 0x7) == 0) {
+            switch (dsp.gain_type) {
+                case GEN16X_DSP_GAIN_DIRECT:
+                    dsp.current_gain_value = dsp.gain_target;
+                    break;
+                case GEN16X_DSP_GAIN_LINEAR:
+                {
+                    int dir = (dsp.gain_target - dsp.current_gain_value);
+                    
+                    dir = (dir < 0) ? -1 : ((dir > 0) ? 1 : 0);
+                    
+                    int new_gain_value = dir*(int)dsp.gain_rate + (int)dsp.current_gain_value;
+                    
+                    if ((dir < 0 && new_gain_value < dsp.gain_target)
+                     || (dir > 0 && new_gain_value > dsp.gain_target)) {
+                        dsp.current_gain_value = dsp.gain_target;
+                    } else {
+                        dsp.current_gain_value = new_gain_value;
+                    }
+                    break;
+                }
+                case GEN16X_DSP_GAIN_EXPONENTIAL:
+                {
+                    dsp.current_gain_value = (((int)dsp.gain_target*dsp.gain_rate) + ((int)dsp.current_gain_value*(GEN16X_DSP_MAX_GAIN - (int)dsp.gain_rate)))/(GEN16X_DSP_MAX_GAIN);
+                    break;
+                }
+            }
+        //}
+        if (dsp.gain_type != GEN16X_DSP_GAIN_NONE) {
+            if (dsp.current_gain_value == dsp.gain_target) {
+                dsp.gain_type = GEN16X_DSP_GAIN_NONE;
+            }
+        }
+        
+        //if (dsp.voice_playing) {
+            int l_input_signal = voice[(voice_time*2)];
+            int r_input_signal = voice[(voice_time*2) + 1];
+        l_acc_signal += ((l_input_signal)*((int)dsp.current_gain_value))/GEN16X_DSP_MAX_VOLUME;// ((int)dsp.l_volume*l_input_signal*(int)dsp.current_gain_value)/(256*1024);
+        r_acc_signal += ((r_input_signal)*((int)dsp.current_gain_value))/GEN16X_DSP_MAX_VOLUME;// ((int)dsp.r_volume*r_input_signal*(int)dsp.current_gain_value)/(256*1024);
+        if (dsp.voice_playing) {
+            dsp.voice_time += dsp.pitch;
+        }
+        
+        //}
+        
+    }
+    int output_pos = spu->current_output_position++;
+    if (output_pos >= spu->output_samples/2) {
+        output_pos = (spu->output_samples/2) - 1;
+        spu->underrun = 1;
+    } else {
+        spu->underrun = 0;
+    }
+    int l_result = (l_acc_signal*spu->l_volume)/GEN16X_DSP_MAX_VOLUME;
+    int r_result = (r_acc_signal*spu->r_volume)/GEN16X_DSP_MAX_VOLUME;
+    if (l_result <= -(65534/2)) {
+        l_result = -(65534/2);
+    }
+    if (l_result >= (65534/2)) {
+        l_result = (65534/2);
+    }
+    if (r_result <= -(65534/2)) {
+        r_result = -(65534/2);
+    }
+    if (r_result >= (65534/2)) {
+        r_result = (65534/2);
+    }
+    output[(output_pos*2)] = l_result;
+    output[(output_pos*2) + 1] = r_result;
+    spu->time_counter++;
+}
