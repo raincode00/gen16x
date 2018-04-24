@@ -67,6 +67,7 @@
 #define GEN16X_DSP_GAIN_EXPONENTIAL 0x3
 #define GEN16X_DSP_MAX_GAIN         16384
 #define GEN16X_DSP_MAX_VOLUME       16384
+#define GEN16X_DSP_BASE_PITCH       1024
 
 
 #ifdef _MSC_VER

@@ -443,7 +443,7 @@ void gen16x_spu_tick(gen16x_spu* spu) {
         short* voice = (spu->sram + dsp.voice_offset);
         
         
-        int voice_time = (dsp.voice_time)/256;
+        int voice_time = int(dsp.voice_time)/GEN16X_DSP_BASE_PITCH;
         
         if (dsp.stop) {
             if (dsp.voice_playing) {

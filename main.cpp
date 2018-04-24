@@ -403,7 +403,7 @@ void init_spu() {
     app.spu.channels[0].l_volume = GEN16X_DSP_MAX_VOLUME;
     app.spu.channels[0].r_volume = GEN16X_DSP_MAX_VOLUME;
     
-    app.spu.channels[0].pitch = 256;
+    app.spu.channels[0].pitch = GEN16X_DSP_BASE_PITCH;
     app.spu.channels[0].gain_rate = 64;
     app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_NONE;
     
@@ -889,6 +889,18 @@ void handle_sdl_input() {
         app.spu.channels[0].gain_rate = 1;
         app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_EXPONENTIAL;
         //app.spu.channels[0].stop = 1;
+        printf("Keyup\n");
+    }
+    
+    if (kbstate[SDL_SCANCODE_X]) {
+        if (!keydown[SDL_SCANCODE_X]) {
+            keydown[SDL_SCANCODE_X] = true;
+            app.spu.channels[0].pitch = GEN16X_DSP_BASE_PITCH - 100;
+            printf("Keydown\n");
+        }
+    } else if (keydown[SDL_SCANCODE_X]) {
+        keydown[SDL_SCANCODE_X] = false;
+        app.spu.channels[0].pitch = GEN16X_DSP_BASE_PITCH;
         printf("Keyup\n");
     }
 }
