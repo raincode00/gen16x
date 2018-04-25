@@ -12,7 +12,7 @@
 #include "gen16x.h"
 
 #include "shaders.h"
-const int SAMPLE_RATE = 44100;
+const int SAMPLE_RATE = 44000;
 
 class Timer {
 public:
@@ -247,7 +247,7 @@ void init_ppu() {
     memcpy(tile_layer2.tile_map, test_text, sizeof(test_text));
     app.ppu.layers[2].tile_layer.tile_size = GEN16X_TILE8;
     app.ppu.layers[2].tile_layer.flags = 0;
-    app.ppu.layers[2].tile_layer.tilemap_width = 4;
+    app.ppu.layers[2].tile_layer.tilemap_width = 5;
     app.ppu.layers[2].tile_layer.tilemap_height = 1;
     
     //tile_layer2.transform.base = 8;
@@ -391,40 +391,6 @@ void init_ppu() {
 }
 
 
-void init_spu() {
-    memset(&app.spu, 0, sizeof(app.spu));
-    
-    app.spu.output_offset = 1024*32*2;
-    app.spu.output_samples = 2048;
-    app.spu.l_volume = GEN16X_DSP_MAX_VOLUME;
-    app.spu.r_volume = GEN16X_DSP_MAX_VOLUME;
-
-    app.spu.channels[0].enabled = 1;
-    app.spu.channels[0].l_volume = GEN16X_DSP_MAX_VOLUME;
-    app.spu.channels[0].r_volume = GEN16X_DSP_MAX_VOLUME;
-    
-    app.spu.channels[0].pitch = GEN16X_DSP_BASE_PITCH;
-    app.spu.channels[0].gain_rate = 64;
-    app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_NONE;
-    
-    app.spu.channels[0].current_gain_value = 0;
-    app.spu.channels[0].voice_offset = 0;
-    app.spu.channels[0].voice_loop = 1;
-    app.spu.channels[0].voice_samples = 1024*32;
-    short* voice =  (short*)app.spu.sram;
-    for (int i = 0; i < app.spu.channels[0].voice_samples; i++) {
-        float fade_in = i/8000.0f;
-        fade_in = fade_in > 1.0 ? 1.0 : fade_in;
-        
-        float fade_out = (app.spu.channels[0].voice_samples-i)/8000.0f;
-        fade_out = fade_out > 1.0 ? 1.0 : fade_in;
-        
-        short signal = 30000.0*sinf(440.0f*M_PI*float(i)/app.spu.channels[0].voice_samples);
-        voice[(i*2)] = signal;
-        voice[(i*2) + 1] = signal;
-    }
-}
-
 
 bool compile_shader(uint32_t shader_type, uint32_t shader, const char* shader_source) {
     glShaderSource(shader, 1, &shader_source, 0);
@@ -459,6 +425,66 @@ int SDLCALL watch(void *userdata, SDL_Event* event) {
     return 1;
 }
 
+void init_spu() {
+    memset(&app.spu, 0, sizeof(app.spu));
+
+
+    app.spu.l_volume = GEN16X_DSP_MAX_VOLUME/4;
+    app.spu.r_volume = GEN16X_DSP_MAX_VOLUME/4;
+    app.spu.sample_rate = SAMPLE_RATE;
+
+    app.spu.channels[0].enabled = 1;
+    app.spu.channels[0].l_volume = GEN16X_DSP_MAX_VOLUME;
+    app.spu.channels[0].r_volume = GEN16X_DSP_MAX_VOLUME;
+
+    app.spu.channels[0].pitch = 0;
+    app.spu.channels[0].gain_rate = 64;
+    app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_NONE;
+
+    app.spu.channels[0].oscillator_type = GEN16X_DSP_OSC_SINE;
+    app.spu.channels[0].oscillator_note = 69;
+    app.spu.channels[0].oscillator_amplitude = GEN16X_DSP_MAX_VOLUME/4;
+
+    app.spu.channels[0].current_gain_value = 0;
+    app.spu.channels[0].voice_offset = 0;
+    app.spu.channels[0].voice_loop = 1;
+    app.spu.channels[0].voice_samples = SAMPLE_RATE/2;
+
+    app.spu.output_samples = 2048;
+    app.spu.output_offset = (sizeof(app.spu.sram)/2) - app.spu.output_samples*2;
+    
+
+    short* voice = (short*)app.spu.sram;
+    for (int i = 0; i < app.spu.channels[0].voice_samples; i++) {
+        float fade_in = i / 8000.0f;
+        fade_in = fade_in > 1.0 ? 1.0 : fade_in;
+
+        float fade_out = (app.spu.channels[0].voice_samples - i) / 8000.0f;
+        fade_out = fade_out > 1.0 ? 1.0 : fade_in;
+
+        short signal = 0.0*sinf(440.0f*(2*M_PI)*float(i)/SAMPLE_RATE);
+        voice[(i * 2)] = signal;
+        voice[(i * 2) + 1] = signal;
+
+    }
+}
+
+
+void audio_callback(void *user_data, Uint8 *raw_buffer, int bytes) {
+    Sint16 *buffer = (Sint16*)raw_buffer;
+    int length = bytes / 2; // 2 bytes per sample for AUDIO_S16SYS
+    int &sample_nr(*(int*)user_data);
+    short* output = app.spu.sram + app.spu.output_offset;
+
+    for (int i = 0; i < length; i++, sample_nr++) {
+        gen16x_spu_tick(&app.spu);
+        buffer[i] = (output[0] + output[1]) / 2;
+        app.spu.flushed = true;
+    }
+    //printf("Flushed sound: %d\n", app.spu.channels[0].current_gain_value);
+
+}
+
 
 bool init_sdl() {
     if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
@@ -485,23 +511,6 @@ bool init_sdl() {
     
     
     
-    auto audio_callback = [](void *user_data, Uint8 *raw_buffer, int bytes) {
-        Sint16 *buffer = (Sint16*)raw_buffer;
-        int length = bytes / 2; // 2 bytes per sample for AUDIO_S16SYS
-        int &sample_nr(*(int*)user_data);
-        short* output = app.spu.sram + app.spu.output_offset;
-        
-        for(int i = 0; i < length; i++, sample_nr++) {
-            gen16x_spu_tick(&app.spu);
-            buffer[i] = (output[0] + output[1])/2;
-            /*if (((i&0xF) == 0) && buffer[i]) {
-                printf("buffer:%d\n", int(buffer[i]));
-            }*/
-            app.spu.flushed = true;
-        }
-        //printf("Flushed sound: %d\n", app.spu.channels[0].current_gain_value);
-        
-    };
     
     
     
@@ -510,16 +519,21 @@ bool init_sdl() {
     app.audio_want.freq = SAMPLE_RATE; // number of samples per second
     app.audio_want.format = AUDIO_S16SYS; // sample type (here: signed short i.e. 16 bit)
     app.audio_want.channels = 1; // only one channel
-    app.audio_want.samples = 2048; // buffer-size
+    app.audio_want.samples = SAMPLE_RATE/16; // buffer-size
     app.audio_want.callback = audio_callback; // function SDL calls periodically to refill the buffer
     app.audio_want.userdata = &app.audio_sample_nr; // counter, keeping track of current sample number
     
-    if(SDL_OpenAudio(&app.audio_want, &app.audio_have) != 0) SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Failed to open audio: %s", SDL_GetError());
-    if(app.audio_want.format != app.audio_have.format) SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Failed to get the desired AudioSpec");
+    if (SDL_OpenAudio(&app.audio_want, NULL) != 0) {
+        printf("Failed to open audio: %s", SDL_GetError());
+    }
+    /*if (app.audio_want.format != app.audio_have.format) {
+        printf("Failed to get the desired AudioSpec");
+    }*/
 
     
     return true;
 }
+
 
 void cleanup_sdl() {
     
@@ -835,8 +849,8 @@ void handle_sdl_input() {
     
     float speed_scale = 20.0f;
     if (kbstate[SDL_SCANCODE_W]) {
-        float forward_x = -sinf(3.1415926f*player.rot/ 180.0f);
-        float forward_y = cosf(3.1415926f*player.rot / 180.0f);
+        float forward_x = -sinf(3.1415926f*player.rot/180.0f);
+        float forward_y = cosf(3.1415926f*player.rot/180.0f);
         
         player.pos_x += speed_scale*10.0f*app.delta_time*forward_x;
         player.pos_y += speed_scale*10.0f*app.delta_time*-forward_y;
@@ -846,7 +860,7 @@ void handle_sdl_input() {
     
     if (kbstate[SDL_SCANCODE_S]) {
         float forward_x = -sinf(3.1415926f*player.rot/180.0f);
-        float forward_y = cosf(3.1415926f*player.rot / 180.0f);
+        float forward_y = cosf(3.1415926f*player.rot/180.0f);
         
         player.pos_x += 5.0f*speed_scale*app.delta_time*-forward_x;
         player.pos_y += 5.0f*speed_scale*app.delta_time*forward_y;
@@ -872,19 +886,19 @@ void handle_sdl_input() {
     if (kbstate[SDL_SCANCODE_R]) {
         player.height += 4.0f*speed_scale*app.delta_time;
     }
-    if (kbstate[SDL_SCANCODE_Z]) {
-        if (!keydown[SDL_SCANCODE_Z]) {
-            keydown[SDL_SCANCODE_Z] = true;
+    if (kbstate[SDL_SCANCODE_N]) {
+        if (!keydown[SDL_SCANCODE_N]) {
+            keydown[SDL_SCANCODE_N] = true;
             app.spu.channels[0].voice_playing = 1;
-            app.spu.channels[0].gain_target = GEN16X_DSP_MAX_GAIN;
+            app.spu.channels[0].gain_target = GEN16X_DSP_MAX_VOLUME;
             app.spu.channels[0].gain_rate = 128;
             //app.spu.channels[0].voice_time = 0;
             //app.spu.channels[0].current_gain_value = 0;
             app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_EXPONENTIAL;
             printf("Keydown\n");
         }
-    } else if (keydown[SDL_SCANCODE_Z]) {
-        keydown[SDL_SCANCODE_Z] = false;
+    } else if (keydown[SDL_SCANCODE_N]) {
+        keydown[SDL_SCANCODE_N] = false;
         app.spu.channels[0].gain_target = 0;
         app.spu.channels[0].gain_rate = 1;
         app.spu.channels[0].gain_type = GEN16X_DSP_GAIN_EXPONENTIAL;
@@ -892,21 +906,23 @@ void handle_sdl_input() {
         printf("Keyup\n");
     }
     
-    if (kbstate[SDL_SCANCODE_X]) {
-        if (!keydown[SDL_SCANCODE_X]) {
-            keydown[SDL_SCANCODE_X] = true;
-            app.spu.channels[0].pitch = GEN16X_DSP_BASE_PITCH - 100;
+    if (kbstate[SDL_SCANCODE_M]) {
+        if (!keydown[SDL_SCANCODE_M]) {
+            keydown[SDL_SCANCODE_M] = true;
+            app.spu.channels[0].pitch = (((523.25f - 440.0f)*GEN16X_DSP_BASE_PITCH)/440.0f);
             printf("Keydown\n");
         }
-    } else if (keydown[SDL_SCANCODE_X]) {
-        keydown[SDL_SCANCODE_X] = false;
-        app.spu.channels[0].pitch = GEN16X_DSP_BASE_PITCH;
+    } else if (keydown[SDL_SCANCODE_M]) {
+        keydown[SDL_SCANCODE_M] = false;
+        app.spu.channels[0].pitch = 0;
         printf("Keyup\n");
     }
 }
 
+
+
 int main() {
-    
+
     player.pos_x = 0;
     player.pos_y = 0;
     player.height = 0;
@@ -925,7 +941,6 @@ int main() {
     
     
     while (!app.quitting) {
-        SDL_PauseAudio(0);
         handle_sdl_events();
         handle_sdl_input();
         
@@ -969,7 +984,7 @@ int main() {
         if (app.timer.elapsed() > 1.0 && app.frame_no > 0.0) {
             char fps_text[32];
             app.delta_time = (float)(app.timer.elapsed() / app.frame_no);
-            sprintf(fps_text, "FPS: %0.2f\n", app.frame_no / app.timer.elapsed());
+            sprintf(fps_text, "FPS: %0.2f %0.2f ms\n", app.frame_no / app.timer.elapsed(), 1000.0f*app.timer.elapsed()/app.frame_no);
             printf("%s", fps_text);
             gen16x_layer_tiles& tile_layer2 = *(gen16x_layer_tiles*)(app.ppu.vram + app.ppu.layers[2].vram_offset);
             strncpy((char*)tile_layer2.tile_map, fps_text, 32);

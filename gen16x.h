@@ -65,9 +65,14 @@
 #define GEN16X_DSP_GAIN_DIRECT      0x1
 #define GEN16X_DSP_GAIN_LINEAR      0x2
 #define GEN16X_DSP_GAIN_EXPONENTIAL 0x3
-#define GEN16X_DSP_MAX_GAIN         16384
 #define GEN16X_DSP_MAX_VOLUME       16384
-#define GEN16X_DSP_BASE_PITCH       1024
+#define GEN16X_DSP_BASE_PITCH       64
+
+#define GEN16X_DSP_OSC_NONE         0x0
+#define GEN16X_DSP_OSC_SINE         0x1
+#define GEN16X_DSP_OSC_SAW          0x2
+#define GEN16X_DSP_OSC_SQUARE       0x3
+#define GEN16X_DSP_OSC_NOISE        0x4
 
 
 #ifdef _MSC_VER
@@ -192,6 +197,8 @@ GEN16X_PACK_STRUCT(gen16x_dsp_channel) {
     short r_volume;
     short pitch;
     
+    unsigned int time;
+
     unsigned char reverb_enable;
     short reverb_delay;
     short reverb_count;
@@ -206,13 +213,17 @@ GEN16X_PACK_STRUCT(gen16x_dsp_channel) {
     short gain_target;
     short current_gain_value;
     
+
     unsigned char voice_loop;
     unsigned char voice_playing;
-    unsigned char stop;
+    unsigned char voice_stop;
     unsigned int voice_offset;
     unsigned int voice_samples;
-    unsigned int voice_time;
-    
+
+    unsigned char oscillator_type;
+    unsigned char oscillator_note;
+    short oscillator_amplitude;
+    short oscillator_phase;
     
 };
 
@@ -223,12 +234,12 @@ GEN16X_PACK_STRUCT(gen16x_spu) {
     int l_volume;
     int r_volume;
     
-    int time_setting;
-    int time_counter;
-    int current_output_position;
-    
-    int output_offset;
-    int output_samples;
+    unsigned int time_setting;
+    unsigned int time_counter;
+    unsigned int current_output_position;
+    unsigned int output_offset;
+    unsigned int output_samples;
+    unsigned int sample_rate;
     gen16x_dsp_channel channels[GEN16X_MAX_DSP_CHANNELS];
     
     short sram[0x40000];
