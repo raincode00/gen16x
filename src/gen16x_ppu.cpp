@@ -181,7 +181,7 @@ void render_row_direct(gen16x_ppu* ppu, int layer_index, int row_index, int col_
     }
 }
 
-template<unsigned char tile_size_shift, int blendmode>
+template<unsigned char tile_size_shift, bool apply_tf, int blendmode, int edge_mode_x, int edge_mode_y>
 void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
     gen16x_layer_tiles * layer_tiles = (gen16x_layer_tiles*)(ppu->vram + layer.vram_offset);
@@ -209,21 +209,21 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
         ~((unsigned int)tilemap_wh_mask[1])
     };
 
-    bool clamp[2] = {
-        (bool)(layer.tile_layer.flags & GEN16X_FLAG_CLAMP_X),
-        (bool)(layer.tile_layer.flags & GEN16X_FLAG_CLAMP_Y)
+    const bool clamp[2] = {
+        edge_mode_x == GEN16X_FLAG_CLAMP_X, //(bool)(layer.tile_layer.flags & GEN16X_FLAG_CLAMP_X),
+        edge_mode_y == GEN16X_FLAG_CLAMP_Y, //(bool)(layer.tile_layer.flags & GEN16X_FLAG_CLAMP_Y)
     };
-    bool rep[2] = {
-                (bool)(layer.tile_layer.flags & GEN16X_FLAG_REPEAT_X),
-                (bool)(layer.tile_layer.flags & GEN16X_FLAG_REPEAT_Y)
+    const bool rep[2] = {
+        edge_mode_x == GEN16X_FLAG_REPEAT_X, //(bool)(layer.tile_layer.flags & GEN16X_FLAG_REPEAT_X),
+        edge_mode_y == GEN16X_FLAG_REPEAT_Y, //(bool)(layer.tile_layer.flags & GEN16X_FLAG_REPEAT_Y)
     };
 
-    bool not_clamp_or_rep[2] = {
+    const bool not_clamp_or_rep[2] = {
         !clamp[0] && !rep[0],
         !clamp[1] && !rep[1],
     };
 
-    bool apply_tf = (bool)(layer.tile_layer.flags & GEN16X_FLAG_TRANSFORM);
+    //bool apply_tf = (bool)(layer.tile_layer.flags & GEN16X_FLAG_TRANSFORM);
 
     gen16x_transform tf = layer.tile_layer.transform;
 
@@ -375,15 +375,35 @@ void gen16x_ppu_render(gen16x_ppu* ppu) {
         memset(row_pixels, 0, ppu->screen_width*4);
         
         for (int l = 0; l < 6; l++) {
-            
+
+            #define CASE_TILES_IF(tile_mode, blendmode, edge_mode_x, edge_mode_y)\
+                if ((ppu->layers[l].tile_layer.flags & edge_mode_x) == edge_mode_x \
+                 && (ppu->layers[l].tile_layer.flags & edge_mode_y) == edge_mode_y) {\
+                    if ((ppu->layers[l].tile_layer.flags & GEN16X_FLAG_TRANSFORM) == GEN16X_FLAG_TRANSFORM)\
+                        render_row_tiles<tile_mode, true, blendmode, edge_mode_x, edge_mode_y>(ppu, l, y, 0, ppu->screen_width, row_pixels);\
+                    else render_row_tiles<tile_mode, false, blendmode, edge_mode_x, edge_mode_y>(ppu, l, y, 0, ppu->screen_width, row_pixels);\
+                }
+            #define CASE_TILES(tile, mode) \
+                CASE_TILES_IF(tile, mode, GEN16X_FLAG_CLAMP_X , GEN16X_FLAG_CLAMP_Y  ) else \
+                CASE_TILES_IF(tile, mode, GEN16X_FLAG_CLAMP_X , GEN16X_FLAG_REPEAT_Y ) else \
+                CASE_TILES_IF(tile, mode, GEN16X_FLAG_CLAMP_X , 0                    ) else \
+                CASE_TILES_IF(tile, mode, GEN16X_FLAG_REPEAT_X, GEN16X_FLAG_CLAMP_Y  ) else \
+                CASE_TILES_IF(tile, mode, GEN16X_FLAG_REPEAT_X, GEN16X_FLAG_REPEAT_Y ) else \
+                CASE_TILES_IF(tile, mode, GEN16X_FLAG_REPEAT_X, 0                    ) else \
+                CASE_TILES_IF(tile, mode, 0                   , GEN16X_FLAG_CLAMP_Y  ) else \
+                CASE_TILES_IF(tile, mode, 0                   , GEN16X_FLAG_REPEAT_Y ) else \
+                CASE_TILES_IF(tile, mode, 0                   , 0)
+
             #define CASE_BLENDMODE_DIRECT(mode) case (mode):\
                 render_row_direct<mode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
 
             #define CASE_BLENDMODE_TILES8(mode) case (mode):\
-                render_row_tiles<3, mode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
+                CASE_TILES(3, mode) \
+                break;
 
             #define CASE_BLENDMODE_TILES16(mode) case (mode):\
-                render_row_tiles<4, mode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
+                CASE_TILES(4, mode) \
+                break;
 
             #define CASE_BLENDMODE_SPRITES(mode) case (mode):\
                 render_row_sprites<mode>(ppu, l, y, 0, ppu->screen_width, row_pixels); break
