@@ -23,68 +23,7 @@
 
 #pragma once
 
-#define GEN16X_LAYER_NONE           0x00
-#define GEN16X_LAYER_DIRECT         0x01
-#define GEN16X_LAYER_TILES          0x02
-#define GEN16X_LAYER_SPRITES        0x03
-
-
-#define GEN16X_BLENDMODE_NONE       0x00
-#define GEN16X_BLENDMODE_ALPHA      0x01
-#define GEN16X_BLENDMODE_ADD        0x02
-#define GEN16X_BLENDMODE_SUBTRACT   0x03
-#define GEN16X_BLENDMODE_MULTIPLY   0x04
-
-#define GEN16X_TILE8                0x03
-#define GEN16X_TILE16               0x04
-
-#define GEN16X_FLAG_TRANSFORM       0b00000001
-#define GEN16X_FLAG_CLAMP_X         0b00000010
-#define GEN16X_FLAG_CLAMP_Y         0b00000100
-#define GEN16X_FLAG_REPEAT_X        0b00001000
-#define GEN16X_FLAG_REPEAT_Y        0b00010000
-
-#define GEN16X_FLAG_SPRITE_ENABLED  0b10000000
-#define GEN16X_FLAG_SPRITE_VFLIP    0b01000000
-#define GEN16X_FLAG_SPRITE_HFLIP    0b00100000
-
-
-#define GEN16X_SPRITE_WIDTH_MASK    0b00001111
-#define GEN16X_SPRITE_HEIGHT_MASK   0b11110000
-
-#define GEN16X_MAX_SCREEN_HEIGHT    256
-#define GEN16X_MAX_SCREEN_WIDTH     512
-#define GEN16X_MAX_SPRITES          256
-#define GEN16X_MAX_SPRITES_PER_ROW  32
-
-#define GEN16X_MAKE_SPRITE_SIZE(w, h)   (((w) & GEN16X_SPRITE_WIDTH_MASK) | ((h) << 4))
-
-#define GEN16X_MAX_DSP_CHANNELS     16
-
-#define GEN16X_DSP_GAIN_NONE        0x0
-#define GEN16X_DSP_GAIN_DIRECT      0x1
-#define GEN16X_DSP_GAIN_LINEAR      0x2
-#define GEN16X_DSP_GAIN_EXPONENTIAL 0x3
-#define GEN16X_DSP_MAX_VOLUME       16384
-#define GEN16X_DSP_BASE_PITCH       64
-
-#define GEN16X_DSP_OSC_NONE         0x0
-#define GEN16X_DSP_OSC_SINE         0x1
-#define GEN16X_DSP_OSC_SAW          0x2
-#define GEN16X_DSP_OSC_SQUARE       0x3
-#define GEN16X_DSP_OSC_NOISE        0x4
-
-
-#ifdef _MSC_VER
-#define GEN16X_PACK_STRUCT(name) \
-    __pragma(pack(push, 1)) struct name __pragma(pack(pop))
-#elif (__GNUC__)
-#define GEN16X_PACK_STRUCT(name) struct __attribute__((packed)) name
-#else
-#define GEN16X_PACK_STRUCT(name) struct name
-#endif
-
-
+#include "gen16x_defs.h"
 
 GEN16X_PACK_STRUCT(gen16x_color32) {
     union {
@@ -154,8 +93,8 @@ GEN16X_PACK_STRUCT(gen16x_layer_header) {
         struct {
             unsigned char tile_size;
             unsigned char reserved;
-            unsigned short tilemap_width;
-            unsigned short tilemap_height;
+            unsigned char tilemap_width;
+            unsigned char tilemap_height;
             unsigned short flags;
             gen16x_transform transform;
         } tile_layer;
@@ -183,68 +122,3 @@ GEN16X_PACK_STRUCT (gen16x_ppu) {
 
 
 void gen16x_ppu_render(gen16x_ppu* ppu);
-
-
-
-
-
-GEN16X_PACK_STRUCT(gen16x_dsp_channel) {
-   
-    unsigned char enabled;
-    unsigned char mute;
-    
-    short l_volume;
-    short r_volume;
-    short pitch;
-    
-    unsigned int time;
-
-    unsigned char reverb_enable;
-    short reverb_delay;
-    short reverb_count;
-    short reverb_l_volume;
-    short reverb_r_volume;
-    unsigned int reverb_offset;
-    unsigned int reverb_size;
-    
-    
-    unsigned char gain_type;
-    short gain_rate;
-    short gain_target;
-    short current_gain_value;
-    
-
-    unsigned char voice_loop;
-    unsigned char voice_playing;
-    unsigned char voice_stop;
-    unsigned int voice_offset;
-    unsigned int voice_samples;
-
-    unsigned char oscillator_type;
-    unsigned char oscillator_note;
-    short oscillator_amplitude;
-    short oscillator_phase;
-    
-};
-
-GEN16X_PACK_STRUCT(gen16x_spu) {
-    
-    unsigned char flushed;
-    unsigned char underrun;
-    int l_volume;
-    int r_volume;
-    
-    unsigned int time_setting;
-    unsigned int time_counter;
-    unsigned int current_output_position;
-    unsigned int output_offset;
-    unsigned int output_samples;
-    unsigned int sample_rate;
-    gen16x_dsp_channel channels[GEN16X_MAX_DSP_CHANNELS];
-    
-    short sram[0x40000];
-};
-
-
-
-void gen16x_spu_tick(gen16x_spu* spu);
