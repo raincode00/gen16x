@@ -44,7 +44,7 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(gen16x ${OPENGL_LIBRARIES})
 
 if(UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -msse2 -fno-stack-protector")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -ffast-math -msse2 -fno-stack-protector")
     
     add_definitions(-DENABLE_SSE2=1)
 endif()
