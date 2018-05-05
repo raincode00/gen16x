@@ -56,13 +56,15 @@ GEN16X_PACK_STRUCT(gen16x_transform) {
     static const int base = 12;
 };
 GEN16X_PACK_STRUCT(gen16x_layer_tiles) {
-    unsigned char tile_palette[256*256];    //holds 256 16x16 tiles
+    unsigned char tile_set[256*256];    //holds 256 16x16 tiles
     unsigned char tile_map[256 * 256];
 };
 
 GEN16X_PACK_STRUCT(gen16x_sprite) {
     short x;
     short y;
+    short scale_x;
+    short scale_y;
     unsigned char flags;
     unsigned char priority;
     unsigned char size;
@@ -71,7 +73,7 @@ GEN16X_PACK_STRUCT(gen16x_sprite) {
 }; //10 bytes
 
 GEN16X_PACK_STRUCT(gen16x_layer_sprites) {
-    unsigned char sprite_palette[1024*128];  // holds 1024 16x16 sprites or 4096 8x8 sprites
+    unsigned char sprite_tiles[1024*128];  // holds 1024 16x16 sprites or 4096 8x8 sprites
 };
 
 GEN16X_PACK_STRUCT(gen16x_layer_direct) {

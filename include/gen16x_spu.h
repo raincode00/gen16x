@@ -57,6 +57,9 @@ GEN16X_PACK_STRUCT(gen16x_dsp_channel) {
     unsigned char voice_stop;
     unsigned int voice_offset;
     unsigned int voice_samples;
+    unsigned int voice_loop_start;
+    unsigned int voice_loop_end;
+    
 
     unsigned char oscillator_type;
     unsigned char oscillator_note;

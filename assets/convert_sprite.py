@@ -2,11 +2,11 @@ import math
 import struct
 from PIL import Image
 
-name = "test_sprite2"
+name = "test_sprite3"
 im = Image.open(name + ".bmp")
 
 #print im.palette.palette
-sprite_size = 16
+sprite_size = 32
 
 sprites = []
 

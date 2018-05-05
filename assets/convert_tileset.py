@@ -1,9 +1,31 @@
 import math
+import struct
 from PIL import Image
 
-im = Image.open("background.bmp")
+name = "test_tileset_2"
+im = Image.open(name + ".bmp")
+
+#print im.palette.palette
+sprite_size = 32
+
+sprites = []
+
+palette = struct.unpack("<" + "L"*(len(im.palette.palette)/4), im.palette.palette)
+
+def process_pallete(i):
+	if i != 0x00FF00FF:
+		i = i | 0xFF000000
+	return i
+def pack_index(a, b):
+	return ((a&0xF) << 4) | (b & 0xF)
+	
+print "unsigned int " + name + "_palette["+str(len(palette))+"] = {"
+print "    " + "".join(["0x{0:0{1}X},".format(process_pallete(x), 8) for x in palette])
+print "};"
 
 
+
+"""
 def get_index(rgb):
 	if rgb == (214, 27, 227):
 		return 0
@@ -20,9 +42,14 @@ def get_index(rgb):
 		if idx == 0:
 			return 254
 		return idx
+"""
+print "unsigned char " + name + "_tileset[256*256] = {"
 
 for y in xrange(0, im.size[1]):
 	for x in xrange(0, im.size[0]):
 		pixel = im.getpixel((x,y))
-		print '0x{0:0{1}X},'.format(get_index(pixel), 2) ,
+		print '0x{0:0{1}X},'.format(pixel, 2) ,
 	print ""
+
+
+print "};"

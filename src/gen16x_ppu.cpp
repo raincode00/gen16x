@@ -210,12 +210,12 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
     };
 
     const bool clamp[2] = {
-        edge_mode_x == GEN16X_FLAG_CLAMP_X, //(bool)(layer.tile_layer.flags & GEN16X_FLAG_CLAMP_X),
-        edge_mode_y == GEN16X_FLAG_CLAMP_Y, //(bool)(layer.tile_layer.flags & GEN16X_FLAG_CLAMP_Y)
+        edge_mode_x == GEN16X_FLAG_CLAMP_X,
+        edge_mode_y == GEN16X_FLAG_CLAMP_Y,
     };
     const bool rep[2] = {
-        edge_mode_x == GEN16X_FLAG_REPEAT_X, //(bool)(layer.tile_layer.flags & GEN16X_FLAG_REPEAT_X),
-        edge_mode_y == GEN16X_FLAG_REPEAT_Y, //(bool)(layer.tile_layer.flags & GEN16X_FLAG_REPEAT_Y)
+        edge_mode_x == GEN16X_FLAG_REPEAT_X,
+        edge_mode_y == GEN16X_FLAG_REPEAT_Y,
     };
 
     const bool not_clamp_or_rep[2] = {
@@ -278,7 +278,7 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
         };
 
         unsigned int tile_pixel_offset = (tile_index << tile_index_shift) | (tile_sub[1] << tile_size_shift) | (tile_sub[0]);
-        unsigned char tile_pixel = layer_tiles->tile_palette[tile_pixel_offset];
+        unsigned char tile_pixel = layer_tiles->tile_set[tile_pixel_offset];
         write_pixel<blendmode>(ppu->cgram32[tile_pixel], *((gen16x_color32*)&row_pixels[x]));
     }
 }
@@ -290,7 +290,6 @@ void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col
 
    
     unsigned char sprites_to_draw[GEN16X_MAX_SPRITES_PER_ROW];
-
     int num_sprites = 0;
 
     for (int s = 0; s < GEN16X_MAX_SPRITES; s++) {
@@ -303,14 +302,16 @@ void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col
         int s_y = sprite.y;
         int s_sw = (sprite.size & GEN16X_SPRITE_WIDTH_MASK);
         int s_sh = ((sprite.size & GEN16X_SPRITE_HEIGHT_MASK) >> 4);
-        int s_w = 1 << s_sw;
-        int s_h = 1 << s_sh;
-        
-        if (out_of_range(row_index, s_y, s_y + s_h - 1)) {
+        int s_w = ((1 << s_sw));
+        int s_h = ((1 << s_sh));
+
+       
+        if (out_of_range((((row_index - s_y)*sprite.scale_y) >> 8) + s_y, s_y, s_y + s_h - 1)) {
             continue;
         }
         int s_x = sprite.x;
-        if ((s_x >= ppu->screen_width) || (s_x + s_w < 0)) {
+        if ((s_x >= (((ppu->screen_width - s_x)*sprite.scale_x) >> 8) + s_x)
+            || (s_x + s_w < (((0 - s_x)*sprite.scale_x) >> 8) + s_x)) {
             continue;
         }
         if (num_sprites >= GEN16X_MAX_SPRITES_PER_ROW) {
@@ -327,40 +328,51 @@ void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col
 
         int s_sw = (sprite.size & GEN16X_SPRITE_WIDTH_MASK);
         int s_sh = ((sprite.size & GEN16X_SPRITE_HEIGHT_MASK) >> 4);
-        int s_w = 1 << s_sw;
-        int s_h = 1 << s_sh;
+        int s_w = (1 << s_sw);
+        int s_h = (1 << s_sh);
 
 
         int start = sprite.x;
         if (start < col_start) {
             start = col_start + int(sprite.x % 2);
         }
-        int end = sprite.x + s_w;
+        int end = sprite.x + (((s_w) << 8)/sprite.scale_x);
         if (end > col_end) {
             end = col_end;
         }
-        int y0 = clamp0(row_index - sprite.y, s_h);
-        int s_sub_w_mask = ((1 << (8 - s_sw)) - 1);
-        int s_sub_h_mask = ((1 << (8 - s_sh)) - 1);
-        int s_sub_y = (y0 >> 3) & s_sub_h_mask;
-        int s_sub_y0 = y0 & 7;
-        
-        for (int x = start; x < end; x += 2) {
-            int x0 = (x - sprite.x);
-            int s_sub_x = (x0 >> 3) & s_sub_w_mask;
-            int s_sub_x0 = (x0 & 0x7);
-            int s_sub_index = ((s_sub_y << (s_sw - 3)) + s_sub_x);
-            int s_offset = (sprite.tile_index << 6) + (s_sub_index << 6) + (s_sub_y0 << 3) + (s_sub_x0);
+        int y0 = clamp0(((row_index - sprite.y)*sprite.scale_y) >> 8, s_h);
+        int sub_w_mask = ((1 << (8 - s_sw)) - 1);
+        int sub_h_mask = ((1 << (8 - s_sh)) - 1);
+        int sub_y = (y0 >> 3) & sub_h_mask;
+        int sub_y0 = y0 & 7;
+        int block_region = (sprite.tile_index << 5);
+        int block_sub_region = (sub_y << (s_sw - 3));
+        int prev_x0 = -32768;
+        gen16x_color32 prev_color;
+        for (int x = start; x < end; x++) {
 
-            unsigned int sprite_color = (int)layer_sprites->sprite_palette[(s_offset >> 1)&0x1FFFF];
-            unsigned int sprite_color0 = sprite_color >> 4;
-            unsigned int sprite_color1 = sprite_color & 0xF;
+            int x0 = (((x - sprite.x))*sprite.scale_x) >> 8;
+
+            if (x0 != prev_x0) {
+                int sub_x = (x0 >> 3) & sub_w_mask;
+                int sub_x0 = (x0 & 0x7) >> 1;
+                int sub_index = (block_sub_region + sub_x);
+                int offset = block_region + (sub_index << 5) + (sub_y0 << 2) + (sub_x0);
+
+                unsigned int sprite_color0 = (int)layer_sprites->sprite_tiles[(offset)&0x1FFFF];
+
+                if ((x0 & 1) == 0) {
+                    sprite_color0 = sprite_color0 >> 4;
+                } else {
+                    sprite_color0 = (sprite_color0 & 0xF);
+                }
+                prev_color = ppu->cgram32[sprite.palette_offset + sprite_color0];
+                prev_x0 = x0;
+            }
             if (x >= col_start) {
-                write_pixel<blendmode>(ppu->cgram32[sprite.palette_offset + sprite_color0], *((gen16x_color32*)&row_pixels[x]));
+                write_pixel<blendmode>(prev_color, *((gen16x_color32*)&row_pixels[x]));
             }
-            if (x + 1 < col_end) {
-                write_pixel<blendmode>(ppu->cgram32[sprite.palette_offset + sprite_color1], *((gen16x_color32*)&row_pixels[x + 1]));
-            }
+            
         }
     }
 }
