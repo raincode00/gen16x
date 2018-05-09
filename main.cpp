@@ -138,7 +138,7 @@ void init_ppu() {
     memset(&app.ppu, 0, sizeof(app.ppu));
 
     
-    app.ppu.screen_height = 208;
+    app.ppu.screen_height = 216;
     app.ppu.screen_width = 384;
     
     for (int r = 0; r < 6; r++) {
@@ -209,22 +209,79 @@ void init_ppu() {
      }*/
     
 
+  
+
+
+
     app.ppu.layers[0].layer_type = GEN16X_LAYER_TILES;
     app.ppu.layers[0].vram_offset = offset;
+    app.ppu.layers[2].layer_type = GEN16X_LAYER_TILES;
+    app.ppu.layers[2].vram_offset = offset;
+    
+    unsigned char* tile_layer0 = (app.ppu.vram + app.ppu.layers[0].vram_offset);
+    //gen16x_layer_tiles& tile_layer1 = *(gen16x_layer_tiles*)(app.ppu.vram + app.ppu.layers[2].vram_offset);
+    
+    for (int i = 0; i < 16; i++) {
+        for (int j = 0; j < 16; j++) {
+            int tile_index = i * 16 + j;
+            for (int row = 0; row < 16; row++) {
+                for (int col = 0; col < 16; col++) {
+                    tile_layer0[(tile_index << 8) | (row << 4) | (col)] = test_tileset_2_tileset[(i * 16 + row) * 256 + j*16 + col];
+                    //tile_layer1.tile_set[(tile_index << 8) | (row << 4) | (col)] = test_tileset_2_tileset[(i * 16 + row) * 256 + j*16 + col];
+                }
+                
+            }
+        }
+    }
+
+    offset += sizeof(test_tileset_2_tileset);
+
+    for (int i = 0; i < sizeof(test_tileset_2_palette)/4; i++) {
+        app.ppu.cgram32[i].color_i = test_tileset_2_palette[i];
+    }
+    
+    app.ppu.layers[0].tile_layer.tilemap_vram_offset = offset;
+    unsigned char* tilemap_layer0 = (app.ppu.vram + app.ppu.layers[0].tile_layer.tilemap_vram_offset);
+
+    memcpy(tilemap_layer0, test_map_layer0_tilemap, sizeof(test_map_layer0_tilemap));
+
+    offset += sizeof(test_map_layer0_tilemap);
+
+    app.ppu.layers[2].tile_layer.tilemap_vram_offset = offset;
+    unsigned char* tilemap_layer1 = (app.ppu.vram + app.ppu.layers[2].tile_layer.tilemap_vram_offset);
 
 
-    offset += (sizeof(gen16x_layer_tiles));
+    memcpy(tilemap_layer1, test_map_layer1_tilemap, sizeof(test_map_layer1_tilemap));
+    offset += sizeof(test_map_layer1_tilemap);
 
+
+    app.ppu.layers[0].tile_layer.tile_size = GEN16X_TILE16;
+    app.ppu.layers[0].tile_layer.flags =  GEN16X_FLAG_CLAMP_X | GEN16X_FLAG_CLAMP_Y;
+    app.ppu.layers[0].tile_layer.tilemap_width = 6;
+    app.ppu.layers[0].tile_layer.tilemap_height = 6;
+
+
+    app.ppu.layers[2].tile_layer.tile_size = GEN16X_TILE16;
+    app.ppu.layers[2].tile_layer.flags =  GEN16X_FLAG_CLAMP_X | GEN16X_FLAG_CLAMP_Y;
+    app.ppu.layers[2].tile_layer.tilemap_width = 6;
+    app.ppu.layers[2].tile_layer.tilemap_height = 6;
+    
+    
+    
 
 
     app.ppu.layers[1].layer_type = GEN16X_LAYER_SPRITES;
     app.ppu.layers[1].vram_offset = offset;
     app.ppu.layers[1].blend_mode = GEN16X_BLENDMODE_NONE;
-    gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[1].vram_offset);
+    //gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[1].vram_offset);
+    unsigned char* sprite_tiles = app.ppu.vram + app.ppu.layers[1].vram_offset;
 
+    memcpy(sprite_tiles, test_sprite3_tiles, sizeof(test_sprite3_tiles));
+    offset += sizeof(test_sprite3_tiles);
 
-    memcpy(sprites_layer.sprite_tiles, test_sprite3_tiles, sizeof(test_sprite3_tiles));
-    memcpy(sprites_layer.sprite_tiles + sizeof(test_sprite3_tiles), test_sprite2_tiles, sizeof(test_sprite2_tiles));
+    //memcpy(sprite_tiles + sizeof(test_sprite3_tiles), test_sprite2_tiles, sizeof(test_sprite2_tiles));
+    //offset += sizeof(test_sprite2_tiles);
+
     for (int i = 0; i < 15; i++) {
         app.ppu.cgram32[220 + i].color_i = test_sprite3_palette[i];
     }
@@ -242,80 +299,38 @@ void init_ppu() {
     app.ppu.layers[1].sprite_layer.sprites[0].scale_y = 256;
 
 
-    offset += (sizeof(gen16x_layer_sprites));
-
-
-    
-    app.ppu.layers[2].layer_type = GEN16X_LAYER_TILES;
-    
-    app.ppu.layers[2].vram_offset = offset;
-    
-    gen16x_layer_tiles& tile_layer0 = *(gen16x_layer_tiles*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
-    gen16x_layer_tiles& tile_layer1 = *(gen16x_layer_tiles*)(app.ppu.vram + app.ppu.layers[2].vram_offset);
-    
-    for (int i = 0; i < 16; i++) {
-        for (int j = 0; j < 16; j++) {
-            int tile_index = i * 16 + j;
-            for (int row = 0; row < 16; row++) {
-                for (int col = 0; col < 16; col++) {
-                    tile_layer0.tile_set[(tile_index << 8) | (row << 4) | (col)] = test_tileset_2_tileset[(i * 16 + row) * 256 + j*16 + col];
-                    tile_layer1.tile_set[(tile_index << 8) | (row << 4) | (col)] = test_tileset_2_tileset[(i * 16 + row) * 256 + j*16 + col];
-                }
-                
-            }
-        }
-    }
-
-    for (int i = 0; i < sizeof(test_tileset_2_palette)/4; i++) {
-        app.ppu.cgram32[i].color_i = test_tileset_2_palette[i];
-    }
-    
-    memcpy(tile_layer0.tile_map, test_map_layer0_tilemap, sizeof(test_map_layer0_tilemap));
-    memcpy(tile_layer1.tile_map, test_map_layer1_tilemap, sizeof(test_map_layer1_tilemap));
-
-
-    app.ppu.layers[0].tile_layer.tile_size = GEN16X_TILE16;
-    app.ppu.layers[0].tile_layer.flags =  GEN16X_FLAG_REPEAT_X | GEN16X_FLAG_REPEAT_Y;
-    app.ppu.layers[0].tile_layer.tilemap_width = 6;
-    app.ppu.layers[0].tile_layer.tilemap_height = 6;
-
-
-    app.ppu.layers[2].tile_layer.tile_size = GEN16X_TILE16;
-    app.ppu.layers[2].tile_layer.flags =  GEN16X_FLAG_REPEAT_X | GEN16X_FLAG_REPEAT_Y;
-    app.ppu.layers[2].tile_layer.tilemap_width = 6;
-    app.ppu.layers[2].tile_layer.tilemap_height = 6;
-    
-    
-    offset += (sizeof(gen16x_layer_tiles));
-    
     
     app.ppu.layers[4].layer_type = GEN16X_LAYER_TILES;
     app.ppu.layers[4].vram_offset = offset;
     
-    gen16x_layer_tiles& tile_layer4 = *(gen16x_layer_tiles*)(app.ppu.vram + app.ppu.layers[4].vram_offset);
+    unsigned char* tile_layer4 = app.ppu.vram + app.ppu.layers[4].vram_offset;
     
     for (int i = 0; i < 128; i++) {
         uint64_t tmp = font_8x8[i];
         uint64_t mask = 0x8000000000000000L;
         for (int col = 0; col < 64; col++) {
-            unsigned char b = (tmp & (mask >> col)) ? 32 : 0x00;
-            tile_layer4.tile_set[(i << 7) | (col)] = b;
+            unsigned char b = (tmp & (mask >> col)) ? '8' : 0;
+            int index = (i << 6) | (col);
+            tile_layer4[index] = b;
         }
     }
-    char test_text[] = "hello world";
+    offset += 128*64;
+
+    char test_text[] = "0123456789ABCDEFabcdef";
+    app.ppu.layers[4].tile_layer.tilemap_vram_offset = offset;
+    unsigned char* tilemap_layer4 = (app.ppu.vram + app.ppu.layers[4].tile_layer.tilemap_vram_offset);
+
+    memcpy(tilemap_layer4, test_text, sizeof(test_text));
     
-    memcpy(tile_layer4.tile_map, test_text, sizeof(test_text));
+    offset += 32;
+
     app.ppu.layers[4].tile_layer.tile_size = GEN16X_TILE8;
     app.ppu.layers[4].tile_layer.flags = 0;
     app.ppu.layers[4].tile_layer.tilemap_width = 5;
-    app.ppu.layers[4].tile_layer.tilemap_height = 1;
+    app.ppu.layers[4].tile_layer.tilemap_height = 0;
     
     app.ppu.layers[4].tile_layer.transform.x = -10;
     app.ppu.layers[4].tile_layer.transform.y = -8;
-    
-    offset += (sizeof(gen16x_layer_tiles));
-    
- 
 
 
 
@@ -326,9 +341,9 @@ void init_ppu() {
         static int z = 0;
         z += 1;
         
-        gen16x_layer_direct& layer_direct = *(gen16x_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
+        //gen16x_layer_direct& layer_direct = *(gen16x_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
         
-        gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
+        //gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
 
         app.ppu.layers[1].sprite_layer.sprites[1].x = 100 + sinf(app.current_time*1.31 + y/4.0f)*2;
         app.ppu.layers[1].sprite_layer.sprites[1].y = 100 + cosf(app.current_time*2.2 + 0.25*sinf(y/4.0))*10 + y*0.25;
@@ -371,11 +386,12 @@ void init_ppu() {
     };
     app.ppu.framebuffer_offset = offset;
 
+    //offset += app.ppu.screen_height*app.ppu.screen_width*4;
     
     printf("Initialized %d bytes of PPU vram\n", (int)sizeof(app.ppu.vram));
     printf("Initialized %d bytes of PPU cgram\n", (int)sizeof(app.ppu.cgram32));
     printf("Initialized %d bytes of PPU layer registers\n", (int)sizeof(app.ppu.layers));
-
+    printf("Utilizing %d bytes of PPU vram\n", offset);
 }
 
 
@@ -547,12 +563,10 @@ bool init_opengl() {
     printf("Status: Using OpenGL %s\n", glGetString(GL_VERSION));
     
     
-    glEnable(GL_FRAMEBUFFER_SRGB);
-    
     
     glGenTextures(1, &app.framebuffer_texture);
     glBindTexture(GL_TEXTURE_2D, app.framebuffer_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, app.ppu.screen_width,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app.ppu.screen_width,
                  app.ppu.screen_height, 0, GL_BGRA, GL_UNSIGNED_BYTE,
                  app.ppu.vram + app.ppu.framebuffer_offset);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -622,7 +636,7 @@ bool init_opengl() {
     
     
     glUseProgram(app.shader_prog);
-    app.texture_uni = glGetUniformLocation(app.shader_prog, "texture");
+    app.texture_uni = glGetUniformLocation(app.shader_prog, "Texture");
     app.display_size_uni = glGetUniformLocation(app.shader_prog, "display_size");
     app.texture_size_uni = glGetUniformLocation(app.shader_prog, "texture_size");
     
@@ -1004,7 +1018,7 @@ int main() {
         handle_sdl_events();
         handle_sdl_input();
         
-        gen16x_layer_direct& direct_layer = *(gen16x_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
+        //gen16x_layer_direct& direct_layer = *(gen16x_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
         
         //app.ppu.layers[0].direct_layer.scroll_y = 0;
         //app.ppu.layers[0].direct_layer.scroll_x = (short)((-player.rot/120.0f)*app.ppu.screen_width);
@@ -1016,80 +1030,44 @@ int main() {
         //app.ppu.layers[2].layer_type = GEN16X_LAYER_TILES;
 
 
-        gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[2].vram_offset);
+        //gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[2].vram_offset);
 
         static int frame_no = 0;
 
         frame_no++;
+
         if (player.state == 0) {
             app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*player.dir;
         } else {
-            if (player.dir == 0) {
-                app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(12 + int(app.current_time*5.0)%4);
-            } else if (player.dir == 1) {
-                app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(4 + int(app.current_time*5.0)%4);
-            } else if (player.dir == 2) {
-                app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(16 + int(app.current_time*5.0)%4);
-            } else if (player.dir == 3) {
-                app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(8 + int(app.current_time*5.0)%4);
-            }
+            app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(6*(1 + player.dir) + int(app.current_time*12.0)%6);
         }
         
-
-        //sprites_layer.sprites[1].tile_index = 16 * ((int(frame_no / 100.0) + 3)  % 20);
-        //app.ppu.layers[3].sprite_layer.sprites[2].tile_index = 16 * (((int(frame_no / 9500.0) % 5)*4) + (int(frame_no / 500.0) + 6) % 4);
-        //app.ppu.layers[3].sprite_layer.sprites[3].tile_index = 16 * (((int(frame_no / 9500.0) % 5)*4) + (int(frame_no / 500.0) + 9) % 4);
-
-
-
-        //app.ppu.layers[3].sprite_layer.sprites[1].x = -16 + app.ppu.screen_width / 2 + cosf(-frame_no / 5000.0f)*app.ppu.screen_width / 2;
-        //app.ppu.layers[3].sprite_layer.sprites[1].y = -16 + app.ppu.screen_height / 2 + sinf(-frame_no / 5000.0f)*app.ppu.screen_height / 2;
-        //app.ppu.layers[3].sprite_layer.sprites[1].scale_x = 256;
-        //app.ppu.layers[3].sprite_layer.sprites[1].scale_y = 256;
         
 
 
-        float ay = player.height + 16;
-
-        
-        int sprite_x = 0*sin(frame_no/500.0f)*16.0f;
-        int sprite_y = 0;
-        int sprite_z = 0;
-
-        
-
-
-        float p_cos = cosf(player.rot*3.1415926f/180.0f);
-        float p_sin = sinf(player.rot*3.1415926f/180.0f);
-
-
-        float cam_right_x = p_cos;
-        float cam_right_y = p_sin;
-        float cam_right_z = 0;
-
-
-        float cam_forward_x = -p_sin;
-        float cam_forward_y = p_cos;
-        float cam_forward_z = 0;
-
-        
-        float cam_up_x = 0;
-        float cam_up_y = 0;
-        float cam_up_z = 1;
-
-        float lambda = ay / (float(sprite_z + 4.0f));
-
-        float sprite_d = (player.pos_x - sprite_x)*(player.pos_x - sprite_x) + (player.pos_y - sprite_y)*(player.pos_y - sprite_y);
-
-        float sprite_p = (cam_forward_x*(player.pos_x - sprite_x)*(player.pos_x - sprite_x) + cam_forward_y*(player.pos_y-sprite_y)*(player.pos_y-sprite_y));
-
-        float sprite_s_x =  cam_right_x*(sprite_x - player.pos_x) + cam_forward_x*(sprite_y - player.pos_y) + cam_up_x*(sprite_z - player.height) + player.pos_x;// (cam_right_x*(sprite_x - player.pos_x) + cam_right_y*(sprite_y - player.pos_y) + cam_forward_x*(sprite_x - player.pos_x) + cam_forward_y*(sprite_y - player.pos_y));// +cam_up_x*(sprite_z - player.height);
-        float sprite_s_y =  cam_right_y*(sprite_x - player.pos_x) + cam_forward_y*(sprite_y - player.pos_y) + cam_up_y*(sprite_z - player.height) + player.pos_y;// +cam_up_x*(sprite_z - player.height);
+        //float ay = player.height + 16;        
+        //int sprite_x = 0*sin(frame_no/500.0f)*16.0f;
+        //int sprite_y = 0;
+        //int sprite_z = 0;
+        //float p_cos = cosf(player.rot*3.1415926f/180.0f);
+        //float p_sin = sinf(player.rot*3.1415926f/180.0f);
+        //float cam_right_x = p_cos;
+        //float cam_right_y = p_sin;
+        //float cam_right_z = 0;
+        //float cam_forward_x = -p_sin;
+        //float cam_forward_y = p_cos;
+        //float cam_forward_z = 0;
+        //float cam_up_x = 0;
+        //float cam_up_y = 0;
+        //float cam_up_z = 1;
+        //float lambda = ay / (float(sprite_z + 4.0f));
+        //float sprite_d = (player.pos_x - sprite_x)*(player.pos_x - sprite_x) + (player.pos_y - sprite_y)*(player.pos_y - sprite_y);
+        //float sprite_p = (cam_forward_x*(player.pos_x - sprite_x)*(player.pos_x - sprite_x) + cam_forward_y*(player.pos_y-sprite_y)*(player.pos_y-sprite_y));
+        //float sprite_s_x =  cam_right_x*(sprite_x - player.pos_x) + cam_forward_x*(sprite_y - player.pos_y) + cam_up_x*(sprite_z - player.height) + player.pos_x;// (cam_right_x*(sprite_x - player.pos_x) + cam_right_y*(sprite_y - player.pos_y) + cam_forward_x*(sprite_x - player.pos_x) + cam_forward_y*(sprite_y - player.pos_y));// +cam_up_x*(sprite_z - player.height);
+        //float sprite_s_y =  cam_right_y*(sprite_x - player.pos_x) + cam_forward_y*(sprite_y - player.pos_y) + cam_up_y*(sprite_z - player.height) + player.pos_y;// +cam_up_x*(sprite_z - player.height);
         //float sprite_s_z =  cam_right_x*(sprite_x - player.pos_x) + cam_forward_x*(sprite_y - player.pos_y) + cam_up_x*(sprite_z - player.height);
-
-        float scale_factor = sprite_p;// 16 + sprite_d;
+        //float scale_factor = sprite_p;// 16 + sprite_d;
         //app.ppu.layers[3].sprite_layer.sprites[2].scale_x = app.ppu.layers[3].sprite_layer.sprites[2].scale_y = scale_factor;
-
         //app.ppu.layers[3].sprite_layer.sprites[2].y = 80 - (16*32)/(scale_factor);// app.ppu.screen_height/2;
         //app.ppu.layers[3].sprite_layer.sprites[2].x = (app.ppu.screen_width/2)*sprite_s_x/(sprite_p/16) + app.ppu.screen_width/2  - (16*256)/(scale_factor);
         
@@ -1119,8 +1097,8 @@ int main() {
             app.delta_time = (float)(app.timer.elapsed() / app.frame_no);
             sprintf(fps_text, "FPS: %0.2f %0.2f ms\n", app.frame_no / app.timer.elapsed(), 1000.0f*app.timer.elapsed()/app.frame_no);
             printf("%s", fps_text);
-            gen16x_layer_tiles& tile_layer4 = *(gen16x_layer_tiles*)(app.ppu.vram + app.ppu.layers[4].vram_offset);
-            strncpy((char*)tile_layer4.tile_map, fps_text, 32);
+            unsigned char* tilemap_layer4 = (app.ppu.vram + app.ppu.layers[4].tile_layer.tilemap_vram_offset);
+            strncpy((char*)tilemap_layer4, fps_text, 32);
             
             
             app.frame_no = 0.0;

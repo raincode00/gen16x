@@ -55,11 +55,14 @@ GEN16X_PACK_STRUCT(gen16x_transform) {
     };
     static const int base = 12;
 };
+
+
+/*
 GEN16X_PACK_STRUCT(gen16x_layer_tiles) {
     unsigned char tile_set[256*256];    //holds 256 16x16 tiles
     unsigned char tile_map[256 * 256];
 };
-
+*/
 GEN16X_PACK_STRUCT(gen16x_sprite) {
     short x;
     short y;
@@ -72,6 +75,8 @@ GEN16X_PACK_STRUCT(gen16x_sprite) {
     unsigned short tile_index;
 }; //10 bytes
 
+
+/*
 GEN16X_PACK_STRUCT(gen16x_layer_sprites) {
     unsigned char sprite_tiles[1024*128];  // holds 1024 16x16 sprites or 4096 8x8 sprites
 };
@@ -79,7 +84,7 @@ GEN16X_PACK_STRUCT(gen16x_layer_sprites) {
 GEN16X_PACK_STRUCT(gen16x_layer_direct) {
     unsigned char map[512*256];
 };
-
+*/
 GEN16X_PACK_STRUCT(gen16x_layer_header) {
     unsigned char layer_type;
     unsigned char blend_mode;
@@ -97,6 +102,7 @@ GEN16X_PACK_STRUCT(gen16x_layer_header) {
             unsigned char reserved;
             unsigned char tilemap_width;
             unsigned char tilemap_height;
+            unsigned int tilemap_vram_offset;
             unsigned short flags;
             gen16x_transform transform;
         } tile_layer;
@@ -111,7 +117,7 @@ struct gen16x_ppu;
 
 typedef void(*gen16x_row_callback_t)(gen16x_ppu*, unsigned int);
 
-GEN16X_PACK_STRUCT (gen16x_ppu) {
+GEN16X_PACK_STRUCT(gen16x_ppu) {
     unsigned short screen_width;
     unsigned short screen_height;
     gen16x_row_callback_t row_callback;

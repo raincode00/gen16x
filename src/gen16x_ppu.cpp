@@ -137,8 +137,7 @@ inline void write_pixel<GEN16X_BLENDMODE_SUBTRACT>(const gen16x_color32 &src, ge
 template<int blendmode>
 void render_row_direct(gen16x_ppu* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
-    gen16x_layer_direct * layer_direct = (gen16x_layer_direct*)(ppu->vram + layer.vram_offset);
-    
+    unsigned char* map = ppu->vram + layer.vram_offset;
     bool rep_x = (bool)(layer.direct_layer.flags & GEN16X_FLAG_REPEAT_X);
     bool rep_y = (bool)(layer.direct_layer.flags & GEN16X_FLAG_REPEAT_Y);
     int y0 = row_index + layer.direct_layer.scroll_y;
@@ -152,7 +151,7 @@ void render_row_direct(gen16x_ppu* ppu, int layer_index, int row_index, int col_
         }
     }
 
-    unsigned char* row_src = &layer_direct->map[y0*layer.direct_layer.width];
+    unsigned char* row_src = map + y0*layer.direct_layer.width;
 
     if (!rep_x && -layer.direct_layer.scroll_x > col_start) {
         col_start = -layer.direct_layer.scroll_x;
@@ -184,13 +183,14 @@ void render_row_direct(gen16x_ppu* ppu, int layer_index, int row_index, int col_
 template<unsigned char tile_size_shift, bool apply_tf, int blendmode, int edge_mode_x, int edge_mode_y>
 void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
-    gen16x_layer_tiles * layer_tiles = (gen16x_layer_tiles*)(ppu->vram + layer.vram_offset);
 
-    const unsigned char* tile_map = layer_tiles->tile_map;
+    const unsigned char* tile_map = ppu->vram + layer.tile_layer.tilemap_vram_offset;
+    const unsigned char* tile_set = ppu->vram + layer.vram_offset;
+
     int y = row_index;
     
     const unsigned char tile_size = (1 << tile_size_shift);
-    const unsigned char tile_index_shift = 4 + tile_size_shift;
+    const unsigned char tile_index_shift = 2*tile_size_shift;
     const unsigned char tile_size_mask = tile_size - 1;
 
     unsigned char tilemap_width_shift = layer.tile_layer.tilemap_width;
@@ -199,6 +199,8 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
         (unsigned char)(1 << layer.tile_layer.tilemap_height)
     };
     
+
+
     int tilemap_wh_mask[2] = {
         tilemap_wh[0] - 1,
         tilemap_wh[1] - 1
@@ -222,8 +224,6 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
         !clamp[0] && !rep[0],
         !clamp[1] && !rep[1],
     };
-
-    //bool apply_tf = (bool)(layer.tile_layer.flags & GEN16X_FLAG_TRANSFORM);
 
     gen16x_transform tf = layer.tile_layer.transform;
 
@@ -278,7 +278,7 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
         };
 
         unsigned int tile_pixel_offset = (tile_index << tile_index_shift) | (tile_sub[1] << tile_size_shift) | (tile_sub[0]);
-        unsigned char tile_pixel = layer_tiles->tile_set[tile_pixel_offset];
+        unsigned char tile_pixel = tile_set[tile_pixel_offset];
         write_pixel<blendmode>(ppu->cgram32[tile_pixel], *((gen16x_color32*)&row_pixels[x]));
     }
 }
@@ -286,8 +286,8 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
 template<int blendmode>
 void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col_start, int col_end, unsigned int* row_pixels) {
     auto &layer = ppu->layers[layer_index];
-    gen16x_layer_sprites* layer_sprites = (gen16x_layer_sprites*)(ppu->vram + layer.vram_offset);
 
+    unsigned char* sprite_tiles = ppu->vram + layer.vram_offset;
    
     unsigned char sprites_to_draw[GEN16X_MAX_SPRITES_PER_ROW];
     int num_sprites = 0;
@@ -359,7 +359,7 @@ void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col
                 int sub_index = (block_sub_region + sub_x);
                 int offset = block_region + (sub_index << 5) + (sub_y0 << 2) + (sub_x0);
 
-                unsigned int sprite_color0 = (int)layer_sprites->sprite_tiles[(offset)&0x1FFFF];
+                unsigned int sprite_color0 = (int)sprite_tiles[(offset)&0x1FFFF];
 
                 if ((x0 & 1) == 0) {
                     sprite_color0 = sprite_color0 >> 4;

@@ -2,7 +2,6 @@
 #define SHADER_TEXT(a) #a
 const char * g_quad_vsh = R"(
     #version 140
-
     in vec2 position;
     out vec2 texcoord;
     uniform vec2 display_size;
@@ -20,8 +19,9 @@ const char * g_quad_vsh = R"(
 
 const char * g_quad_psh = R"(
     #version 140
+
     uniform sampler2D texture2;
-    uniform sampler2D texture;
+    uniform sampler2D Texture;
     uniform vec2 display_size;
     uniform vec2 texture_size;
 
@@ -39,7 +39,7 @@ const char * g_quad_psh = R"(
         vec2 texcoord2 = (floor(vuv) + x_) / texture_size;
         
 
-        vec4 color = textureLod(texture, texcoord2, 0);
+        vec4 color = textureLod(Texture, texcoord2, 0);
         
 
         frag_color = vec4(color.rgb, 1.0);
