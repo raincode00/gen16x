@@ -27,6 +27,7 @@ find_package(GLEW REQUIRED)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/game")
 
 include_directories(${SDL2_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS})
 

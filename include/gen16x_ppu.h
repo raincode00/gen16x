@@ -91,15 +91,17 @@ GEN16X_PACK_STRUCT(gen16x_layer_header) {
     unsigned int vram_offset;
     union {
         struct {
-            short flags;
+            unsigned char flags;
+            unsigned char priority;
             short scroll_x;
             short scroll_y;
             short width;
             short height;
+            
         } direct_layer;
         struct {
             unsigned char tile_size;
-            unsigned char reserved;
+            unsigned char priority;
             unsigned char tilemap_width;
             unsigned char tilemap_height;
             unsigned int tilemap_vram_offset;

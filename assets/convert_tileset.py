@@ -1,12 +1,15 @@
+import sys
 import math
 import struct
 from PIL import Image
 
-name = "test_tileset_2"
+name = sys.argv[1]
+
 im = Image.open(name + ".bmp")
 
 #print im.palette.palette
-sprite_size = 32
+sprite_size = int(sys.argv[2])
+
 
 sprites = []
 
