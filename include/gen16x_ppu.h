@@ -25,7 +25,7 @@
 
 #include "gen16x_defs.h"
 
-GEN16X_PACK_STRUCT(gen16x_color32) {
+struct gen16x_color32 {
     union {
         unsigned int color_i;
         struct {
@@ -37,7 +37,7 @@ GEN16X_PACK_STRUCT(gen16x_color32) {
     };
 };
 
-GEN16X_PACK_STRUCT(gen16x_transform) {
+struct gen16x_transform {
     union {
         struct {
             int x;
@@ -56,14 +56,7 @@ GEN16X_PACK_STRUCT(gen16x_transform) {
     static const int base = 12;
 };
 
-
-/*
-GEN16X_PACK_STRUCT(gen16x_layer_tiles) {
-    unsigned char tile_set[256*256];    //holds 256 16x16 tiles
-    unsigned char tile_map[256 * 256];
-};
-*/
-GEN16X_PACK_STRUCT(gen16x_sprite) {
+struct gen16x_sprite {
     short x;
     short y;
     short scale_x;
@@ -73,19 +66,10 @@ GEN16X_PACK_STRUCT(gen16x_sprite) {
     unsigned char size;
     unsigned char palette_offset;
     unsigned short tile_index;
-}; //10 bytes
-
-
-/*
-GEN16X_PACK_STRUCT(gen16x_layer_sprites) {
-    unsigned char sprite_tiles[1024*128];  // holds 1024 16x16 sprites or 4096 8x8 sprites
 };
 
-GEN16X_PACK_STRUCT(gen16x_layer_direct) {
-    unsigned char map[512*256];
-};
-*/
-GEN16X_PACK_STRUCT(gen16x_layer_header) {
+
+struct gen16x_layer_header {
     unsigned char layer_type;
     unsigned char blend_mode;
     unsigned int vram_offset;
@@ -100,12 +84,13 @@ GEN16X_PACK_STRUCT(gen16x_layer_header) {
             
         } direct_layer;
         struct {
+            unsigned short flags;
             unsigned char tile_size;
             unsigned char priority;
             unsigned char tilemap_width;
             unsigned char tilemap_height;
+            unsigned char palette_offset;
             unsigned int tilemap_vram_offset;
-            unsigned short flags;
             gen16x_transform transform;
         } tile_layer;
         struct {
@@ -119,12 +104,12 @@ struct gen16x_ppu;
 
 typedef void(*gen16x_row_callback_t)(gen16x_ppu*, unsigned int);
 
-GEN16X_PACK_STRUCT(gen16x_ppu) {
+struct gen16x_ppu {
     unsigned short screen_width;
     unsigned short screen_height;
+    unsigned int framebuffer_offset;
     gen16x_row_callback_t row_callback;
     gen16x_layer_header layers[6];
-    unsigned int framebuffer_offset;
     gen16x_color32 cgram32[256];
     unsigned char vram[512*512*4];
 };

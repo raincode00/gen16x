@@ -26,7 +26,7 @@
 #include "gen16x_defs.h"
 
 
-GEN16X_PACK_STRUCT(gen16x_dsp_channel) {
+struct gen16x_dsp_channel {
 
     unsigned char enabled;
     unsigned char mute;
@@ -68,7 +68,7 @@ GEN16X_PACK_STRUCT(gen16x_dsp_channel) {
 
 };
 
-GEN16X_PACK_STRUCT(gen16x_spu) {
+struct gen16x_spu {
 
     unsigned char flushed;
     unsigned char underrun;

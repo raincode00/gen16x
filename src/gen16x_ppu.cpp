@@ -327,7 +327,7 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
 
         unsigned char tile_pixel = tile_set[pixel_offset];
 
-        const gen16x_color32& src = ppu->cgram32[tile_pixel];
+        const gen16x_color32& src = ppu->cgram32[layer.tile_layer.palette_offset + tile_pixel];
 
         gen16x_color32& dst = *((gen16x_color32*)&row_pixels[x]);
         write_pixel<blendmode>(src, dst, priority);
