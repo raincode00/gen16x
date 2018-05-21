@@ -63,7 +63,8 @@ struct gen16x_sprite {
     short scale_y;
     unsigned char flags;
     unsigned char priority;
-    unsigned char size;
+    unsigned char size_w : 4;
+    unsigned char size_h : 4;
     unsigned char palette_offset;
     unsigned short tile_index;
 };
@@ -111,7 +112,7 @@ struct gen16x_ppu {
     gen16x_row_callback_t row_callback;
     gen16x_layer_header layers[6];
     gen16x_color32 cgram32[256];
-    unsigned char vram[512*512*4];
+    unsigned char vram[512*256*4];
 };
 
 

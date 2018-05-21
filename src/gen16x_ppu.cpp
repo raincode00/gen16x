@@ -67,11 +67,17 @@ inline void write_pixel(const gen16x_color32 &src, gen16x_color32 &dst_color, un
 
 template<>
 inline void write_pixel<GEN16X_BLENDMODE_NONE>(const gen16x_color32 &src, gen16x_color32 &dst_color, unsigned char priority) {
+
     unsigned char src_a = src.a;
     unsigned int dst_a = dst_color.a;
     bool is_prio = priority >= dst_a;
     if (src_a && is_prio) {
-        dst_color.color_i = src.color_i & 0x00FFFFFF | ((is_prio ? priority : dst_a) << 24);
+        dst_color.color_i = src.color_i;
+        if (is_prio) {
+            dst_color.a = priority;
+        } else {
+            dst_color.a = dst_a;
+        }
     }
 }
 template<>
@@ -263,7 +269,7 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
         pixel_offset_base = tile_sub[1] << tile_size_shift;
     }
 
-    for (int x = col_start; x < col_end; x++) {
+    for (int x = col_start; x < col_end; ++x) {
         xy[0] = x;
         
         if (apply_tf) {
@@ -275,10 +281,8 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
                 tile[i] = xy0[i] >> tile_size_shift;
                 tile_oob[i] = (bool)((unsigned int)tile[i] & tilemap_wh_mask_inv[i]);
             }
-            bool discard = (tile_oob[0] && not_clamp_or_rep[0]) 
-                || (tile_oob[1] && not_clamp_or_rep[1]);
-
-            if (discard) {
+            if ((tile_oob[0] && not_clamp_or_rep[0]) 
+                || (tile_oob[1] && not_clamp_or_rep[1])) {
                 continue;
             }
             for (int i = 0; i < 2; i++) {
@@ -293,8 +297,7 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
             xy0[0] = xy[0] + tf.m[0][0];
             tile[0] = xy0[0] >> tile_size_shift;
             tile_oob[0] = (bool)((unsigned int)tile[0] & tilemap_wh_mask_inv[0]);
-            bool discard = (tile_oob[0] && not_clamp_or_rep[0]);
-            if (discard) {
+            if (tile_oob[0] && not_clamp_or_rep[0]) {
                 continue;
             }
             if (tile_oob[0] && clamp[0]) {
@@ -349,8 +352,8 @@ void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col
             continue;
         }
         int s_y = sprite.y;
-        int s_sw = (sprite.size & GEN16X_SPRITE_WIDTH_MASK);
-        int s_sh = ((sprite.size & GEN16X_SPRITE_HEIGHT_MASK) >> 4);
+        int s_sw = sprite.size_w;
+        int s_sh = sprite.size_h;
         int s_w = ((1 << s_sw));
         int s_h = ((1 << s_sh));
         if (out_of_range((((row_index - s_y)*sprite.scale_y) >> 8) + s_y, s_y, s_y + s_h - 1)) {
@@ -370,8 +373,8 @@ void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col
     for (int c = 0; c < num_sprites; c++) {
         int sprite_index = sprites_to_draw[c];
         gen16x_sprite& sprite = layer.sprite_layer.sprites[sprite_index];
-        int s_sw = (sprite.size & GEN16X_SPRITE_WIDTH_MASK);
-        int s_sh = ((sprite.size & GEN16X_SPRITE_HEIGHT_MASK) >> 4);
+        int s_sw = sprite.size_w;
+        int s_sh = sprite.size_h;
         int s_w = (1 << s_sw);
         int s_h = (1 << s_sh);
         int start = sprite.x;

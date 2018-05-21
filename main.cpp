@@ -1,16 +1,23 @@
 #include <cstdlib>
 #include <string.h>
 #include <cstdio>
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <chrono>
 
+#define ENABLE_SDL
+
+#ifdef ENABLE_SDL
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
 #include <SDL_audio.h>
 #include <GL/glew.h>
 
+#endif
+
 #include "gen16x.h"
 #include "physics.h"
+#include "scene.h"
 
 #include "shaders.h"
 const int SAMPLE_RATE = 44000;
@@ -47,14 +54,22 @@ player_state player;
 struct application_state {
     gen16x_ppu ppu;
     gen16x_spu spu;
+
+    Scene scene;
+
     Timer timer;
 
+    #ifdef ENABLE_SDL
     SDL_Window* window;
     SDL_Surface* surface;
     SDL_GLContext context;
-    
+
+
     SDL_AudioSpec audio_want;
     SDL_AudioSpec audio_have;
+
+    #endif
+
     int audio_sample_nr = 0;
     
     
@@ -75,7 +90,7 @@ struct application_state {
     
 };
 
-static application_state app;
+static application_state* g_app;
 
 
 
@@ -104,12 +119,14 @@ const unsigned char test_background[1152 * 80] = {
 
 
 void init_ppu() {
+    auto& app = *g_app;
     memset(&app.ppu, 0, sizeof(app.ppu));
 
     
     app.ppu.screen_height = 216;
     app.ppu.screen_width = 384;
-    
+    app.ppu.framebuffer_offset = sizeof(app.ppu.vram) - (app.ppu.screen_height*app.ppu.screen_width*4);
+    /*
     for (int r = 0; r < 6; r++) {
         for (int g = 0; g < 6; g++) {
             for (int b = 0; b < 6; b++) {
@@ -137,9 +154,6 @@ void init_ppu() {
         }
     }
     
-    //app.ppu.cgram[0x00] = 0b0111110000011111;
-    //app.ppu.cgram[0xEF] = 0b1000000000000000;
-    //app.ppu.cgram[0xFF] = 0b1111111111111111;
     
     app.ppu.cgram32[0x00].color_i = 0x00FF00FF;
     app.ppu.cgram32[0xEF].color_i = 0xFF000000;
@@ -147,38 +161,7 @@ void init_ppu() {
     
     
     int offset = 0;
-    /*
-    app.ppu.layers[0].layer_type = GEN16X_LAYER_NONE;
-    app.ppu.layers[0].vram_offset = 0;
     
-    
-    gen16x_layer_direct& direct_layer = *(gen16x_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
-    
-    
-    app.ppu.layers[0].direct_layer.width = 1152;
-    app.ppu.layers[0].direct_layer.height = 80;
-    
-    for (int i = 0; i < direct_layer.height; i++) {
-     for (int j = 0; j < direct_layer.width; j++) {
-     direct_layer.map[i * direct_layer.width + j] = ((i / 16) * direct_layer.width / 16) + j / 16;
-     
-     if (i == j || i == direct_layer.width - j - 1) {
-     direct_layer.map[i * direct_layer.width + j] = 200;
-     }
-     direct_layer.map[i*direct_layer.width + j] = test_background[i*direct_layer.width + j];
-     }
-     }
-    memcpy(direct_layer.map, test_background, sizeof(test_background));
-    */
-
-    /*for (int i = 0; i < 256; i++) {
-     for (int j = 0; j < 256; j++) {
-     direct_layer.map[(i + 16) * direct_layer.width + j + 16] = test_tileset[i*256 + j];
-     }
-     }*/
-    
-
-  
 
 
 
@@ -188,7 +171,6 @@ void init_ppu() {
     app.ppu.layers[3].vram_offset = offset;
     
     unsigned char* tile_layer0 = (app.ppu.vram + app.ppu.layers[0].vram_offset);
-    //gen16x_layer_tiles& tile_layer1 = *(gen16x_layer_tiles*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
     
     for (int i = 0; i < 16; i++) {
         for (int j = 0; j < 16; j++) {
@@ -196,7 +178,6 @@ void init_ppu() {
             for (int row = 0; row < 16; row++) {
                 for (int col = 0; col < 16; col++) {
                     tile_layer0[(tile_index << 8) | (row << 4) | (col)] = test_tileset_2_tileset[(i * 16 + row) * 256 + j*16 + col];
-                    //tile_layer1.tile_set[(tile_index << 8) | (row << 4) | (col)] = test_tileset_2_tileset[(i * 16 + row) * 256 + j*16 + col];
                 }
                 
             }
@@ -244,13 +225,11 @@ void init_ppu() {
     app.ppu.layers[3].tile_layer.transform.d = (1 << gen16x_transform::base);
 
 
-    
-
 
     app.ppu.layers[1].layer_type = GEN16X_LAYER_SPRITES;
     app.ppu.layers[1].vram_offset = offset;
     app.ppu.layers[1].blend_mode = GEN16X_BLENDMODE_NONE;
-    //gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[1].vram_offset);
+
     unsigned char* sprite_tiles = app.ppu.vram + app.ppu.layers[1].vram_offset;
 
     memcpy(sprite_tiles, test_sprite3_tiles, sizeof(test_sprite3_tiles));
@@ -259,8 +238,6 @@ void init_ppu() {
     memcpy(sprite_tiles, slash_anim_tiles, sizeof(slash_anim_tiles));
     offset += sizeof(slash_anim_tiles);
 
-    //memcpy(sprite_tiles + sizeof(test_sprite3_tiles), test_sprite2_tiles, sizeof(test_sprite2_tiles));
-    //offset += sizeof(test_sprite2_tiles);
 
     for (int i = 0; i < 15; i++) {
         app.ppu.cgram32[220 + i].color_i = test_sprite3_palette[i];
@@ -271,9 +248,6 @@ void init_ppu() {
         app.ppu.cgram32[220 + 15 + i].color_i = slash_anim_palette[i];
     }
 
-    /*for (int i = 0; i < 11; i++) {
-    app.ppu.cgram32[235 + i].color_i = test_sprite2_palette[i];
-    }*/
 
     app.ppu.layers[1].sprite_layer.sprites[0].palette_offset = 220;
     app.ppu.layers[1].sprite_layer.sprites[0].flags = GEN16X_FLAG_SPRITE_ENABLED;
@@ -302,16 +276,6 @@ void init_ppu() {
     app.ppu.layers[4].vram_offset = offset;
     
     unsigned char* tile_layer4 = app.ppu.vram + app.ppu.layers[4].vram_offset;
-    /*
-    for (int i = 0; i < 128; i++) {
-        uint64_t tmp = font_8x8[i];
-        uint64_t mask = 0x8000000000000000L;
-        for (int col = 0; col < 64; col++) {
-            unsigned char b = (tmp & (mask >> col)) ? '8' : 0;
-            int index = (i << 6) | (col);
-            tile_layer4[index] = b;
-        }
-    }*/
 
     memcpy(tile_layer4, test_font_tiles, sizeof(test_font_tiles));
     offset += sizeof(test_font_tiles);
@@ -335,7 +299,8 @@ void init_ppu() {
     memcpy(app.ppu.cgram32 + app.ppu.layers[4].tile_layer.palette_offset, test_font_palette, sizeof(test_font_palette));
 
 
-    auto row_callback = (gen16x_row_callback_t)[](gen16x_ppu* ppu, unsigned int y) {
+    /*auto row_callback = (gen16x_row_callback_t)[](gen16x_ppu* ppu, unsigned int y) {
+        auto& app = *g_app;
         if (y > 16) {
             app.ppu.layers[3].layer_type = GEN16X_LAYER_NONE;
         }
@@ -384,18 +349,19 @@ void init_ppu() {
 
             
         }
-    };
-    app.ppu.framebuffer_offset = offset;
+    };*/
+
+    /*app.ppu.framebuffer_offset = offset;
 
     //offset += app.ppu.screen_height*app.ppu.screen_width*4;
     
     printf("Initialized %d bytes of PPU vram\n", (int)sizeof(app.ppu.vram));
     printf("Initialized %d bytes of PPU cgram\n", (int)sizeof(app.ppu.cgram32));
     printf("Initialized %d bytes of PPU layer registers\n", (int)sizeof(app.ppu.layers));
-    printf("Utilizing %d bytes of PPU vram\n", offset);
+    printf("Utilizing %d bytes of PPU vram\n", offset);*/
 }
 
-
+#ifdef ENABLE_SDL
 
 bool compile_shader(uint32_t shader_type, uint32_t shader, const char* shader_source) {
     glShaderSource(shader, 1, &shader_source, 0);
@@ -422,15 +388,17 @@ bool compile_shader(uint32_t shader_type, uint32_t shader, const char* shader_so
 
 
 int SDLCALL watch(void *userdata, SDL_Event* event) {
-    
+    auto& app = *g_app;
     if (event->type == SDL_APP_WILLENTERBACKGROUND) {
         app.quitting = true;
     }
     
     return 1;
 }
+#endif
 
 void init_spu() {
+    auto& app = *g_app;
     memset(&app.spu, 0, sizeof(app.spu));
 
 
@@ -474,8 +442,9 @@ void init_spu() {
     }
 }
 
-
+#ifdef ENABLE_SDL
 void audio_callback(void *user_data, Uint8 *raw_buffer, int bytes) {
+    auto& app = *g_app;
     Sint16 *buffer = (Sint16*)raw_buffer;
     int length = bytes / 2; // 2 bytes per sample for AUDIO_S16SYS
     int &sample_nr(*(int*)user_data);
@@ -492,6 +461,7 @@ void audio_callback(void *user_data, Uint8 *raw_buffer, int bytes) {
 
 
 bool init_sdl() {
+    auto& app = *g_app;
     if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return 1;
@@ -541,7 +511,7 @@ bool init_sdl() {
 
 
 void cleanup_sdl() {
-    
+    auto& app = *g_app;
     SDL_CloseAudio();
     SDL_DelEventWatch(watch, NULL);
     SDL_GL_DeleteContext(app.context);
@@ -549,6 +519,7 @@ void cleanup_sdl() {
 }
 
 bool init_opengl() {
+    auto& app = *g_app;
     glewExperimental = GL_TRUE;
     GLenum err = glewInit();
     if (GLEW_OK != err) {
@@ -665,25 +636,20 @@ bool init_opengl() {
 }
 
 void cleanup_opengl() {
+    auto& app = *g_app;
     glDeleteTextures(1, &app.framebuffer_texture);
     glDeleteBuffers(1, &app.quad_vbo);
     glDeleteVertexArrays(1, &app.quad_va);
 }
 
 void render_opengl() {
-    
+    auto& app = *g_app;
     
     
     
     
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, app.ppu.screen_width, app.ppu.screen_height,
                     GL_BGRA, GL_UNSIGNED_BYTE, app.ppu.vram + app.ppu.framebuffer_offset);
-    
-    int err = glGetError();
-    if (err) {
-        printf("OpenGL Error - %d\n", err);
-        app.quitting = true;
-    }
     
     
     int d_w, d_h;
@@ -722,7 +688,7 @@ void render_opengl() {
 
 
 void render_sdl() {
-
+    auto& app = *g_app;
     int d_w, d_h;
     int w_w, w_h;
 
@@ -798,7 +764,7 @@ void render_sdl() {
 
 
 void handle_resize(int new_w, int new_h) {
-    
+    auto& app = *g_app;
     
     Uint32 flags = SDL_GetWindowFlags(app.window);
     if (!(flags & (SDL_WINDOW_FULLSCREEN|SDL_WINDOW_MAXIMIZED))) {
@@ -809,6 +775,7 @@ void handle_resize(int new_w, int new_h) {
 }
 
 void handle_sdl_events() {
+    auto& app = *g_app;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
@@ -846,6 +813,7 @@ void handle_sdl_events() {
 }
 
 void handle_sdl_input() {
+    auto& app = *g_app;
     static bool keydown[256] = {false};
     
     const Uint8 *kbstate = SDL_GetKeyboardState(NULL);
@@ -969,68 +937,143 @@ void handle_sdl_input() {
 
   
 }
-
+#endif
 
 
 int main() {
+    //g_app = new application_state();
+    //auto& app = *g_app;
 
+    static application_state app;
+    g_app = &app;
+
+    
     player.pos = vec2(350.0f);
     player.height = 0;
     player.rot = 0;
     
     init_ppu();
+
+    memset(&app.scene, 0, sizeof(app.scene));
+    
+    app.scene.view_width = app.ppu.screen_width;
+    app.scene.view_height = app.ppu.screen_height;
+
+
+    app.scene.world.tile_layers[1].enabled = true;
+    app.scene.world.tile_layers[1].tilemap_width = 6;
+    app.scene.world.tile_layers[1].tilemap_height = 6;
+    app.scene.world.tile_layers[1].rom_tileset_base = test_tileset_2_tiles;
+    app.scene.world.tile_layers[1].rom_tileset_size = sizeof(test_tileset_2_tiles);
+
+    app.scene.world.tile_layers[1].rom_tilemap_base = test_map_layer0_tilemap;
+    app.scene.world.tile_layers[1].rom_tilemap_size = sizeof(test_map_layer0_tilemap);
+
+    app.scene.world.tile_layers[1].rom_cgram_base = test_tileset_2_palette;
+    app.scene.world.tile_layers[1].rom_cgram_size = sizeof(test_tileset_2_palette);
+
+    app.scene.world.tile_layers[2].enabled = true;
+    app.scene.world.tile_layers[2].tilemap_width = 6;
+    app.scene.world.tile_layers[2].tilemap_height = 6;
+
+    app.scene.world.tile_layers[2].rom_tileset_base = test_tileset_2_tiles;
+    app.scene.world.tile_layers[2].rom_tileset_size = sizeof(test_tileset_2_tiles);
+
+    app.scene.world.tile_layers[2].rom_tilemap_base = test_map_layer1_tilemap;
+    app.scene.world.tile_layers[2].rom_tilemap_size = sizeof(test_map_layer1_tilemap);
+
+    app.scene.world.tile_layers[2].rom_cgram_base = test_tileset_2_palette;
+    app.scene.world.tile_layers[2].rom_cgram_size = sizeof(test_tileset_2_palette);
+
+
+
+    char test_text[32] = {0};
+
+    app.scene.world.tile_layers[4].enabled = true;
+    app.scene.world.tile_layers[4].tilemap_width = 5;
+    app.scene.world.tile_layers[4].tilemap_height = 0;
+    app.scene.world.tile_layers[4].position.x = 4;
+    app.scene.world.tile_layers[4].position.y = 4;
+    app.scene.world.tile_layers[4].rom_tileset_base = test_font_tiles;
+    app.scene.world.tile_layers[4].rom_tileset_size = sizeof(test_font_tiles);
+    app.scene.world.tile_layers[4].rom_tilemap_base = test_text;
+    app.scene.world.tile_layers[4].rom_tilemap_size = sizeof(test_text);
+    app.scene.world.tile_layers[4].rom_cgram_base = test_font_palette;
+    app.scene.world.tile_layers[4].rom_cgram_size = sizeof(test_font_palette);
+
+
+
+
+    app.scene.num_sprites = 1;
+    app.scene.sprites[0].visible = true;
+    app.scene.sprites[0].current_frame = 0;
+    app.scene.sprites[0].rom_cgram_base = test_sprite3_palette;
+    app.scene.sprites[0].rom_cgram_size = sizeof(test_sprite3_palette);
+    app.scene.sprites[0].rom_sprite_base = test_sprite3_tiles;
+    app.scene.sprites[0].rom_sprite_size = sizeof(test_sprite3_tiles);
+    app.scene.sprites[0].size_w = 5;
+    app.scene.sprites[0].size_h = 5;
+    app.scene.sprites[0].scale = vec2(1,1);
+    
+    WorldEntity sprite_ent;
+    sprite_ent.layer = 0;
+    sprite_ent.id = 0;
+    sprite_ent.type = WORLD_ENTITY_TYPE_SPRITE;
+
+    
+
+    scene_load_ppu(&app.scene, &app.ppu);
+    
+
     init_spu();
     
-    init_sdl();
+    app.scene.world.grid_node_size = 4;
+    app.scene.world.grid_width = 64;
+    app.scene.world.grid_height = 64;
     
     
+
+    #ifdef ENABLE_SDL
+        init_sdl();
+        app.opengl_enabled = init_opengl();
+
+
+        SDL_PauseAudio(0);
+
+    #endif
     
-    SDL_PauseAudio(0);
-    
-    app.opengl_enabled = init_opengl();
-    
+   
+
+
     
     int prev_pos_x = 0;
     int prev_pos_y = 0;
     while (!app.quitting) {
         
-        handle_sdl_events();
-        handle_sdl_input();
-        
-        //gen16x_layer_direct& direct_layer = *(gen16x_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
-        
-        //app.ppu.layers[0].direct_layer.scroll_y = 0;
-        //app.ppu.layers[0].direct_layer.scroll_x = (short)((-player.rot/120.0f)*app.ppu.screen_width);
-        //app.ppu.layers[0].direct_layer.flags |= GEN16X_FLAG_REPEAT_X;
-        
-        
-        //app.ppu.layers[0].layer_type = GEN16X_LAYER_DIRECT;
-        //app.ppu.layers[1].layer_type = GEN16X_LAYER_NONE;
-        //app.ppu.layers[3].layer_type = GEN16X_LAYER_TILES;
+        #ifdef ENABLE_SDL
+            handle_sdl_events();
+            handle_sdl_input();
+        #endif
 
-
-        //gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
-
+        
+        
         static int frame_no = 0;
         static double attack_time = 0;
         frame_no++;
+
         BoxCollider player_aabb;
 
         player_aabb.origin = player.pos - vec2(4);
         player_aabb.size = vec2(8);
 
-
+        app.scene.sprites[0].origin = vec2(16, 30);
 
 
         if (player.state != 2) {
 
 
             if (player.moving) {
-                //float forward_x = -sinf(3.1415926f*player.rot/180.0f);
-                //float forward_y = cosf(3.1415926f*player.rot/180.0f);
-                //player.forward_x = -0.5;
-                //player.forward_y = 0.5;
-                
+
                 float m = mag(player.move);
                 normalize(player.move);
 
@@ -1135,10 +1178,7 @@ int main() {
         }
 
 
-
-        app.ppu.layers[1].sprite_layer.sprites[0].priority = 0;
-        app.ppu.layers[1].sprite_layer.sprites[1].priority = 1;
-
+        app.scene.sprites[0].priority = 0;
         player_aabb.origin = player.pos - vec2(8, 16);
         player_aabb.size = vec2(16);
 
@@ -1153,7 +1193,7 @@ int main() {
             }
 
             if (collision_box_convex(player_aabb, cc)) {
-                app.ppu.layers[1].sprite_layer.sprites[0].priority = 1;
+                app.scene.sprites[0].priority = 1;
                 
                 break;
             }
@@ -1161,31 +1201,29 @@ int main() {
         }
 
 
-
-        app.ppu.layers[1].sprite_layer.sprites[0].x =  app.ppu.screen_width/2 - 16;
-
         if (player.state == 0) {
-            app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*player.dir;
+            app.scene.sprites[0].current_frame = player.dir;
         } else if (player.state == 1) {
-            app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(6*(1 + player.dir) + int(app.current_time*12.0)%6);
+            app.scene.sprites[0].current_frame = (6*(1 + player.dir) + int(app.current_time*12.0)%6);
+
         } else if (player.state == 2) {
             
-            int attack_frame = int(attack_time*20.0);
+            int attack_frame = int(attack_time*10.0);
 
             if (attack_frame >= 3) {
                 player.state = 0;
                 attack_time = 0;
-                app.ppu.layers[1].sprite_layer.sprites[1].flags = 0;
+                //app.ppu.layers[1].sprite_layer.sprites[1].flags = 0;
             } else {
-                app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(30 + attack_frame);
+                //app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(30 + attack_frame);
                 
-                int offsets[] = {-7, 6 + 4, 6};
+                int offsets[] = {-7, 10, 6};
+                app.scene.sprites[0].current_frame = 30 + attack_frame;
+                app.scene.sprites[0].origin.x = 16 - offsets[attack_frame];
+                //app.ppu.layers[1].sprite_layer.sprites[0].x = offsets[attack_frame] + app.ppu.screen_width/2 - 16;
+                //app.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*(3*player.dir + attack_frame) + sizeof(test_sprite3_tiles)/32;
+                //app.ppu.layers[1].sprite_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
 
-                app.ppu.layers[1].sprite_layer.sprites[0].x = offsets[attack_frame] + app.ppu.screen_width/2 - 16;
-                app.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*(3*player.dir + attack_frame) + sizeof(test_sprite3_tiles)/32;
-                app.ppu.layers[1].sprite_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
-
-                //printf("Attack Frame: %d\n", int(attack_time*15.0));
                 attack_time += app.delta_time;
             }
             
@@ -1221,24 +1259,46 @@ int main() {
         //app.ppu.layers[3].sprite_layer.sprites[2].x = (app.ppu.screen_width/2)*sprite_s_x/(sprite_p/16) + app.ppu.screen_width/2  - (16*256)/(scale_factor);
         
 
-        app.ppu.layers[0].tile_layer.transform.x = (int)player.pos.x - app.ppu.screen_width/2;
-        app.ppu.layers[0].tile_layer.transform.y = (int)player.pos.y - app.ppu.screen_height/2;
-
-       
-        app.ppu.layers[3].tile_layer.transform.x = app.ppu.layers[0].tile_layer.transform.x;
-        app.ppu.layers[3].tile_layer.transform.y = app.ppu.layers[0].tile_layer.transform.y;
 
         //app.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*((frame_no/3)%(12)) + sizeof(test_sprite3_tiles)/32;
         //unsigned char sprite_flags = app.ppu.layers[3].sprite_layer.sprites[2].flags;
 
         //app.ppu.layers[3].sprite_layer.sprites[2].flags = (sprite_p > 0) ? GEN16X_FLAG_SPRITE_ENABLED | sprite_flags : ~GEN16X_FLAG_SPRITE_ENABLED & sprite_flags;
-        gen16x_ppu_render(&app.ppu);
-       
-        if (app.opengl_enabled) {
-            render_opengl();
-        } else {
-            render_sdl();
+
+
+        app.scene.camera_pos = player.pos;
+        if (app.scene.camera_pos.x < app.scene.view_width/2) {
+            app.scene.camera_pos.x = app.scene.view_width/2;
         }
+
+        if (app.scene.camera_pos.y < app.scene.view_height/2) {
+            app.scene.camera_pos.y = app.scene.view_height/2;
+        }
+
+        if (app.scene.camera_pos.x > (1<<app.scene.world.grid_node_size)*app.scene.world.grid_width - app.scene.view_width/2) {
+            app.scene.camera_pos.x = (1<<app.scene.world.grid_node_size)*app.scene.world.grid_width - app.scene.view_width/2;
+        }
+
+        if (app.scene.camera_pos.y > (1<<app.scene.world.grid_node_size)*app.scene.world.grid_height - app.scene.view_height/2) {
+            app.scene.camera_pos.y = (1<<app.scene.world.grid_node_size)*app.scene.world.grid_height - app.scene.view_height/2;
+        }
+
+        world_clear_entities(&app.scene.world);
+
+        app.scene.sprites[0].pos = player.pos;
+        
+        world_insert_entity(&app.scene.world, sprite_ent, player.pos - player_aabb.size/2.0f, player.pos + player_aabb.size/2.0f);
+
+        scene_render_ppu(&app.scene, &app.ppu);
+        gen16x_ppu_render(&app.ppu);
+        #ifdef ENABLE_SDL
+            if (app.opengl_enabled) {
+                render_opengl();
+            } else {
+                render_sdl();
+            }
+        #endif
+        
         
         app.current_time += app.delta_time;
 
@@ -1247,7 +1307,7 @@ int main() {
             app.delta_time = (float)(app.timer.elapsed() / app.frame_no);
             sprintf(fps_text, "FPS: %0.2f %0.2f ms\n", app.frame_no / app.timer.elapsed(), 1000.0f*app.timer.elapsed()/app.frame_no);
             printf("%s", fps_text);
-            unsigned char* tilemap_layer4 = (app.ppu.vram + app.ppu.layers[4].tile_layer.tilemap_vram_offset);
+            unsigned char* tilemap_layer4 = (app.ppu.vram + app.ppu.layers[app.scene.world.tile_layers[4].ppu_layer].tile_layer.tilemap_vram_offset);
             strncpy((char*)tilemap_layer4, fps_text, 32);
             
             
@@ -1257,19 +1317,20 @@ int main() {
             
         }
         app.frame_no++;
+        #ifdef ENABLE_SDL
         if (app.opengl_enabled) {
             SDL_GL_SwapWindow(app.window);
         }
-        
+        #endif
     }
-    
-    if (app.opengl_enabled) {
-        cleanup_opengl();
-    }
-    SDL_PauseAudio(1);
-    cleanup_sdl();
-    
-    SDL_Quit();
-    
+    #ifdef ENABLE_SDL
+        if (app.opengl_enabled) {
+            cleanup_opengl();
+        }
+        SDL_PauseAudio(1);
+        cleanup_sdl();
+
+        SDL_Quit();
+    #endif
     return 0;
 }
