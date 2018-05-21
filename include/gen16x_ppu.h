@@ -53,7 +53,7 @@ struct gen16x_transform {
             int m[4][2];
         };
     };
-    static const int base = 12;
+    static const int base = 8;
 };
 
 struct gen16x_sprite {
@@ -71,13 +71,13 @@ struct gen16x_sprite {
 
 
 struct gen16x_layer_header {
-    unsigned char layer_type;
-    unsigned char blend_mode;
+    unsigned char layer_type : 4;
+    unsigned char blend_mode : 4;
     unsigned int vram_offset;
     union {
         struct {
-            unsigned char flags;
-            unsigned char priority;
+            unsigned char flags : 4;
+            unsigned char priority : 4;
             short scroll_x;
             short scroll_y;
             short width;
@@ -85,20 +85,19 @@ struct gen16x_layer_header {
             
         } direct_layer;
         struct {
-            unsigned short flags;
-            unsigned char tile_size;
-            unsigned char priority;
-            unsigned char tilemap_width;
-            unsigned char tilemap_height;
-            unsigned char palette_offset;
+            unsigned int flags : 5;
+            unsigned int tile_size : 3;
+            unsigned int priority : 4;
+            unsigned int tilemap_width : 4;
+            unsigned int tilemap_height : 4;
+            unsigned int palette_offset : 8;
             unsigned int tilemap_vram_offset;
             gen16x_transform transform;
         } tile_layer;
         struct {
-            gen16x_sprite sprites[GEN16X_MAX_SPRITES];
+            unsigned char sprites_base;
+            unsigned char num_sprites;
         } sprite_layer;
-        
-        
     };
 };
 struct gen16x_ppu;
@@ -111,6 +110,7 @@ struct gen16x_ppu {
     unsigned int framebuffer_offset;
     gen16x_row_callback_t row_callback;
     gen16x_layer_header layers[6];
+    gen16x_sprite sprites[GEN16X_MAX_SPRITES];
     gen16x_color32 cgram32[256];
     unsigned char vram[512*256*4];
 };

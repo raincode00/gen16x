@@ -125,240 +125,11 @@ void init_ppu() {
     
     app.ppu.screen_height = 216;
     app.ppu.screen_width = 384;
-    app.ppu.framebuffer_offset = sizeof(app.ppu.vram) - (app.ppu.screen_height*app.ppu.screen_width*4);
-    /*
-    for (int r = 0; r < 6; r++) {
-        for (int g = 0; g < 6; g++) {
-            for (int b = 0; b < 6; b++) {
-                float rf = float(r) / 5;
-                float gf = float(g) / 5;
-                float bf = float(b) / 5;
-                
-                unsigned int argb[4] = {
-                    0xFF,
-                    (unsigned int)(rf*255.0f),
-                    (unsigned int)(gf*255.0f),
-                    (unsigned int)(bf*255.0f),
-                };
-                int i = r*36 + g*6 + b;
-                gen16x_color32 color;
-                color.a = argb[0];
-                color.r = argb[1];
-                color.g = argb[2];
-                color.b = argb[3];
-                //unsigned int argb32 = (argb[0]) | (argb[1] << 8) | (argb[2] << 16) | (argb[3] << 24);
-                //app.ppu.cgram[i] = argb32_to_argb16(color);
-                app.ppu.cgram32[i] = color;
-                
-            }
-        }
-    }
-    
-    
-    app.ppu.cgram32[0x00].color_i = 0x00FF00FF;
-    app.ppu.cgram32[0xEF].color_i = 0xFF000000;
-    app.ppu.cgram32[0xFF].color_i = 0xFFFFFFFF;
-    
-    
-    int offset = 0;
-    
+    //app.ppu.framebuffer_offset = sizeof(app.ppu.vram) - (app.ppu.screen_height*app.ppu.screen_width*4);
 
-
-
-    app.ppu.layers[0].layer_type = GEN16X_LAYER_TILES;
-    app.ppu.layers[0].vram_offset = offset;
-    app.ppu.layers[3].layer_type = GEN16X_LAYER_TILES;
-    app.ppu.layers[3].vram_offset = offset;
-    
-    unsigned char* tile_layer0 = (app.ppu.vram + app.ppu.layers[0].vram_offset);
-    
-    for (int i = 0; i < 16; i++) {
-        for (int j = 0; j < 16; j++) {
-            int tile_index = i * 16 + j;
-            for (int row = 0; row < 16; row++) {
-                for (int col = 0; col < 16; col++) {
-                    tile_layer0[(tile_index << 8) | (row << 4) | (col)] = test_tileset_2_tileset[(i * 16 + row) * 256 + j*16 + col];
-                }
-                
-            }
-        }
-    }
-
-    offset += sizeof(test_tileset_2_tileset);
-
-    for (int i = 0; i < sizeof(test_tileset_2_palette)/4; i++) {
-        app.ppu.cgram32[i].color_i = test_tileset_2_palette[i];
-    }
-    
-    app.ppu.layers[0].tile_layer.tilemap_vram_offset = offset;
-    unsigned char* tilemap_layer0 = (app.ppu.vram + app.ppu.layers[0].tile_layer.tilemap_vram_offset);
-
-    memcpy(tilemap_layer0, test_map_layer0_tilemap, sizeof(test_map_layer0_tilemap));
-
-    offset += sizeof(test_map_layer0_tilemap);
-
-    app.ppu.layers[3].tile_layer.tilemap_vram_offset = offset;
-    unsigned char* tilemap_layer1 = (app.ppu.vram + app.ppu.layers[3].tile_layer.tilemap_vram_offset);
-
-
-    memcpy(tilemap_layer1, test_map_layer1_tilemap, sizeof(test_map_layer1_tilemap));
-    offset += sizeof(test_map_layer1_tilemap);
-
-
-    app.ppu.layers[0].tile_layer.tile_size = GEN16X_TILE16;
-    app.ppu.layers[0].tile_layer.flags =  GEN16X_FLAG_CLAMP_X | GEN16X_FLAG_CLAMP_Y;
-    app.ppu.layers[0].tile_layer.tilemap_width = 6;
-    app.ppu.layers[0].tile_layer.tilemap_height = 6;
-    app.ppu.layers[0].tile_layer.transform.a = (1 << gen16x_transform::base);
-    app.ppu.layers[0].tile_layer.transform.b = 0;
-    app.ppu.layers[0].tile_layer.transform.c = 0;
-    app.ppu.layers[0].tile_layer.transform.d = (1 << gen16x_transform::base);
-
-    app.ppu.layers[3].tile_layer.tile_size = GEN16X_TILE16;
-    app.ppu.layers[3].tile_layer.flags =  GEN16X_FLAG_CLAMP_X | GEN16X_FLAG_CLAMP_Y;
-    app.ppu.layers[3].tile_layer.tilemap_width = 6;
-    app.ppu.layers[3].tile_layer.tilemap_height = 6;
-    
-    app.ppu.layers[3].tile_layer.transform.a = (1 << gen16x_transform::base);
-    app.ppu.layers[3].tile_layer.transform.b = 0;
-    app.ppu.layers[3].tile_layer.transform.c = 0;
-    app.ppu.layers[3].tile_layer.transform.d = (1 << gen16x_transform::base);
-
-
-
-    app.ppu.layers[1].layer_type = GEN16X_LAYER_SPRITES;
-    app.ppu.layers[1].vram_offset = offset;
-    app.ppu.layers[1].blend_mode = GEN16X_BLENDMODE_NONE;
-
-    unsigned char* sprite_tiles = app.ppu.vram + app.ppu.layers[1].vram_offset;
-
-    memcpy(sprite_tiles, test_sprite3_tiles, sizeof(test_sprite3_tiles));
-    offset += sizeof(test_sprite3_tiles);
-    sprite_tiles += sizeof(test_sprite3_tiles);
-    memcpy(sprite_tiles, slash_anim_tiles, sizeof(slash_anim_tiles));
-    offset += sizeof(slash_anim_tiles);
-
-
-    for (int i = 0; i < 15; i++) {
-        app.ppu.cgram32[220 + i].color_i = test_sprite3_palette[i];
-    }
-
-
-    for (int i = 0; i < 6; i++) {
-        app.ppu.cgram32[220 + 15 + i].color_i = slash_anim_palette[i];
-    }
-
-
-    app.ppu.layers[1].sprite_layer.sprites[0].palette_offset = 220;
-    app.ppu.layers[1].sprite_layer.sprites[0].flags = GEN16X_FLAG_SPRITE_ENABLED;
-    app.ppu.layers[1].sprite_layer.sprites[0].size = GEN16X_MAKE_SPRITE_SIZE(5, 5);
-    app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 0;
-    app.ppu.layers[1].sprite_layer.sprites[0].x = app.ppu.screen_width/2 - 16;
-    app.ppu.layers[1].sprite_layer.sprites[0].y = 80;
-    app.ppu.layers[1].sprite_layer.sprites[0].scale_x = 256;
-    app.ppu.layers[1].sprite_layer.sprites[0].scale_y = 256;
-
-
-
-    app.ppu.layers[1].sprite_layer.sprites[1].palette_offset = 220 + 15;
-    app.ppu.layers[1].sprite_layer.sprites[1].flags = 0;
-    app.ppu.layers[1].sprite_layer.sprites[1].size = GEN16X_MAKE_SPRITE_SIZE(6, 6);
-    app.ppu.layers[1].sprite_layer.sprites[1].tile_index = sizeof(test_sprite3_tiles)/32;
-    app.ppu.layers[1].sprite_layer.sprites[1].x = app.ppu.screen_width/2 - 32;
-    app.ppu.layers[1].sprite_layer.sprites[1].y = 80 - 16;
-    app.ppu.layers[1].sprite_layer.sprites[1].scale_x = 256;
-    app.ppu.layers[1].sprite_layer.sprites[1].scale_y = 256;
-
-
-
-    
-    app.ppu.layers[4].layer_type = GEN16X_LAYER_TILES;
-    app.ppu.layers[4].vram_offset = offset;
-    
-    unsigned char* tile_layer4 = app.ppu.vram + app.ppu.layers[4].vram_offset;
-
-    memcpy(tile_layer4, test_font_tiles, sizeof(test_font_tiles));
-    offset += sizeof(test_font_tiles);
-
-    char test_text[] = "0123456789ABCDEFabcdef";
-    app.ppu.layers[4].tile_layer.tilemap_vram_offset = offset;
-    unsigned char* tilemap_layer4 = (app.ppu.vram + app.ppu.layers[4].tile_layer.tilemap_vram_offset);
-
-    memcpy(tilemap_layer4, test_text, sizeof(test_text));
-    
-    offset += 32;
-
-    app.ppu.layers[4].tile_layer.tile_size = GEN16X_TILE8;
-    app.ppu.layers[4].tile_layer.flags = 0;
-    app.ppu.layers[4].tile_layer.tilemap_width = 5;
-    app.ppu.layers[4].tile_layer.tilemap_height = 0;
-    app.ppu.layers[4].tile_layer.palette_offset = 220 + 15 + 6;
-    app.ppu.layers[4].tile_layer.transform.x = -10;
-    app.ppu.layers[4].tile_layer.transform.y = -8;
-
-    memcpy(app.ppu.cgram32 + app.ppu.layers[4].tile_layer.palette_offset, test_font_palette, sizeof(test_font_palette));
-
-
-    /*auto row_callback = (gen16x_row_callback_t)[](gen16x_ppu* ppu, unsigned int y) {
-        auto& app = *g_app;
-        if (y > 16) {
-            app.ppu.layers[3].layer_type = GEN16X_LAYER_NONE;
-        }
-        static int z = 0;
-        z += 1;
-        
-        //gen16x_layer_direct& layer_direct = *(gen16x_layer_direct*)(app.ppu.vram + app.ppu.layers[0].vram_offset);
-        
-        //gen16x_layer_sprites& sprites_layer = *(gen16x_layer_sprites*)(app.ppu.vram + app.ppu.layers[3].vram_offset);
-
-        app.ppu.layers[1].sprite_layer.sprites[1].x = 100 + sinf(app.current_time*1.31f + y/4.0f)*2;
-        app.ppu.layers[1].sprite_layer.sprites[1].y = 100 + cosf(app.current_time*2.2f + 0.25f*sinf(y/4.0f))*10 + y*0.25f;
-        //layer_direct.scroll_x = 2*sinf(app.current_time*1.31 + y/4.0f)*2;
-        //layer_direct.scroll_y = 10 + sinf(app.current_time*1.3 + y/4.0f);
-        int h = y - 80;
-        
-        if (h > 0) {
-            
-            app.ppu.layers[0].layer_type = GEN16X_LAYER_NONE;
-            app.ppu.layers[1].layer_type = GEN16X_LAYER_TILES;
-            float ay = player.height + 16;
-            
-            float lambda = ay / (float(h + 4.0f));
-            
-            
-            float p_cos = cosf(player.rot*3.1415926f/180.0f);
-            float p_sin = sinf(player.rot*3.1415926f/180.0f);
-            
-            
-            float f_x = p_sin;
-            float f_y = p_cos;
-            
-            
-            app.ppu.layers[1].tile_layer.transform.a = (int)(((1 << app.ppu.layers[1].tile_layer.transform.base)* 1.0f *  p_cos)*lambda);
-            app.ppu.layers[1].tile_layer.transform.b = (int)(((1 << app.ppu.layers[1].tile_layer.transform.base)* 1.0f *  p_sin)*lambda);
-            app.ppu.layers[1].tile_layer.transform.c = (int)(((1 << app.ppu.layers[1].tile_layer.transform.base)* 1.0f * -p_sin)*lambda);
-            app.ppu.layers[1].tile_layer.transform.d = (int)(((1 << app.ppu.layers[1].tile_layer.transform.base)* 1.0f *  p_cos)*lambda);
-            
-            app.ppu.layers[1].tile_layer.transform.x = (int)(player.pos.x - 0 * f_x*lambda);
-            app.ppu.layers[1].tile_layer.transform.y = (int)(player.pos.y - 0 * f_y*lambda);
-            app.ppu.layers[1].tile_layer.transform.cx = (int)(player.pos.x - 0 * f_x*lambda + app.ppu.screen_width / 2);
-            app.ppu.layers[1].tile_layer.transform.cy = (int)(player.pos.y - 0*f_y*lambda + app.ppu.screen_height - 16);
-
-            
-
-
-            
-        }
-    };*/
-
-    /*app.ppu.framebuffer_offset = offset;
-
-    //offset += app.ppu.screen_height*app.ppu.screen_width*4;
-    
     printf("Initialized %d bytes of PPU vram\n", (int)sizeof(app.ppu.vram));
     printf("Initialized %d bytes of PPU cgram\n", (int)sizeof(app.ppu.cgram32));
     printf("Initialized %d bytes of PPU layer registers\n", (int)sizeof(app.ppu.layers));
-    printf("Utilizing %d bytes of PPU vram\n", offset);*/
 }
 
 #ifdef ENABLE_SDL
@@ -1021,9 +792,17 @@ int main() {
     sprite_ent.type = WORLD_ENTITY_TYPE_SPRITE;
 
     
+    int used_vram = 0;
+    int used_cgram = 0;
 
-    scene_load_ppu(&app.scene, &app.ppu);
+    scene_load_ppu(&app.scene, &app.ppu, &used_vram, &used_cgram);
     
+
+    printf("Initialized Scene utilizing %d bytes of PPU vram and %d bytes of cgram\n", used_vram, used_cgram);
+
+    app.ppu.framebuffer_offset = ((used_vram + 8) >> 4) << 4;
+
+    printf("Framebuffer location: 0x%08llx\n", (app.ppu.vram + app.ppu.framebuffer_offset));
 
     init_spu();
     
@@ -1310,11 +1089,8 @@ int main() {
             unsigned char* tilemap_layer4 = (app.ppu.vram + app.ppu.layers[app.scene.world.tile_layers[4].ppu_layer].tile_layer.tilemap_vram_offset);
             strncpy((char*)tilemap_layer4, fps_text, 32);
             
-            
             app.frame_no = 0.0;
             app.timer.reset();
-            
-            
         }
         app.frame_no++;
         #ifdef ENABLE_SDL

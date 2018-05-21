@@ -49,13 +49,14 @@ int scene_load_ppu_data(void* ppu_data, int* in_out_offset, int data_size, void*
 
     return offset;
 }
-void scene_load_ppu(Scene* scene, gen16x_ppu* ppu) {
+void scene_load_ppu(Scene* scene, gen16x_ppu* ppu, int* in_out_vram_offset, int* in_out_cgram_offset) {
     int ppu_vram_offset = 0;
     int tile_ppu_layers[5] = {
         0, 1, 3, 4, 5
     };
-    int cgram_offset = 0;
-    int offset = 0;
+    int tmp0, tmp1;
+    int& cgram_offset = in_out_cgram_offset ? *in_out_cgram_offset : tmp1;
+    int& offset = in_out_vram_offset ? *in_out_vram_offset : tmp0;
 
     int num_used_tilesets = 0;
     int num_used_tilemaps = 0;
@@ -162,8 +163,8 @@ void scene_render_ppu(Scene* scene, gen16x_ppu* ppu) {
             if (!sprite.visible) continue;
 
             int si = num_visible_sprites++;
-
-            gen16x_sprite& ppu_sprite = sprite_layer.sprite_layer.sprites[si];
+            
+            gen16x_sprite& ppu_sprite = ppu->sprites[si];
             sprite.ppu_sprite_index = si;
             ppu_sprite.flags = GEN16X_FLAG_SPRITE_ENABLED;
             ppu_sprite.palette_offset = sprite.ppu_cgram_base;
@@ -177,10 +178,11 @@ void scene_render_ppu(Scene* scene, gen16x_ppu* ppu) {
 
             int sprite_frame_size = ((1<<sprite.size_w)*(1<<sprite.size_h)) >> 6;
             ppu_sprite.tile_index = sprite.ppu_sprite_base + sprite.current_frame*sprite_frame_size;
-
         }
+        sprite_layer.sprite_layer.sprites_base = 0;
+        sprite_layer.sprite_layer.num_sprites = num_visible_sprites;
         for (int i = num_visible_sprites; i < 256; i++) {
-            sprite_layer.sprite_layer.sprites[i].flags = 0;
+            ppu->sprites[i].flags = 0;
         }
     }
     

@@ -346,11 +346,15 @@ void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col
     unsigned char sprites_to_draw[GEN16X_MAX_SPRITES_PER_ROW];
     int num_sprites = 0;
 
-    for (int s = 0; s < GEN16X_MAX_SPRITES; s++) {
-        gen16x_sprite& sprite = layer.sprite_layer.sprites[s];
+    int si_start = layer.sprite_layer.sprites_base;
+    int si_end = layer.sprite_layer.sprites_base + layer.sprite_layer.num_sprites;
+
+    for (int s = si_start; s < si_end; s++) {
+        gen16x_sprite& sprite = ppu->sprites[s];
         if (!(sprite.flags & GEN16X_FLAG_SPRITE_ENABLED)) {
             continue;
         }
+
         int s_y = sprite.y;
         int s_sw = sprite.size_w;
         int s_sh = sprite.size_h;
@@ -372,7 +376,7 @@ void render_row_sprites(gen16x_ppu* ppu, int layer_index, int row_index, int col
 
     for (int c = 0; c < num_sprites; c++) {
         int sprite_index = sprites_to_draw[c];
-        gen16x_sprite& sprite = layer.sprite_layer.sprites[sprite_index];
+        gen16x_sprite& sprite = ppu->sprites[sprite_index];
         int s_sw = sprite.size_w;
         int s_sh = sprite.size_h;
         int s_w = (1 << s_sw);
