@@ -244,17 +244,17 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
     int xy[2] = {0,y};
     int xy0[2];
     int tile[2];
-    bool tile_oob[2];
+    unsigned char tile_oob[2];
+    unsigned char tile_sub[2];
     unsigned int tile_offset = 0;
     unsigned int tile_offset_base = 0;
-    unsigned char tile_sub[2];
     unsigned int pixel_offset = 0;
     unsigned int pixel_offset_base = 0;
 
     if (!apply_tf) {
         xy0[1] = xy[1] + tf.m[0][1]; 
         tile[1] = xy0[1] >> tile_size_shift;
-        tile_oob[1] = (bool)((unsigned int)tile[1] & tilemap_wh_mask_inv[1]);
+        tile_oob[1] = ((unsigned int)tile[1] & tilemap_wh_mask_inv[1]);
         if (tile_oob[1] && not_clamp_or_rep[1]) {
             return;
         }
@@ -279,7 +279,7 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
                     ) >> tf.base) + tf.m[1][i]);
 
                 tile[i] = xy0[i] >> tile_size_shift;
-                tile_oob[i] = (bool)((unsigned int)tile[i] & tilemap_wh_mask_inv[i]);
+                tile_oob[i] = ((unsigned int)tile[i] & tilemap_wh_mask_inv[i]);
             }
             if ((tile_oob[0] && not_clamp_or_rep[0]) 
                 || (tile_oob[1] && not_clamp_or_rep[1])) {
@@ -296,7 +296,7 @@ void render_row_tiles(gen16x_ppu* ppu, int layer_index, int row_index, int col_s
         } else {
             xy0[0] = xy[0] + tf.m[0][0];
             tile[0] = xy0[0] >> tile_size_shift;
-            tile_oob[0] = (bool)((unsigned int)tile[0] & tilemap_wh_mask_inv[0]);
+            tile_oob[0] = ((unsigned int)tile[0] & tilemap_wh_mask_inv[0]);
             if (tile_oob[0] && not_clamp_or_rep[0]) {
                 continue;
             }

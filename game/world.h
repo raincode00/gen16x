@@ -1,7 +1,7 @@
 #pragma once
 #include "physics.h"
 
-#define WORLD_NODE_MAX_ENTITIES 32
+#define WORLD_NODE_MAX_ENTITIES 8
 #define WORLD_ENTITY_TYPE_NONE 0
 #define WORLD_ENTITY_TYPE_SPRITE 1
 #define WORLD_ENTITY_TYPE_COLLIDER 2
@@ -16,7 +16,7 @@ struct WorldEntity {
 
 
 struct WorldGridNode {
-    int num_entities;
+    unsigned char num_entities;
     WorldEntity entities[WORLD_NODE_MAX_ENTITIES];
 };
 
@@ -62,9 +62,30 @@ struct World {
     WorldGridNode grid_nodes[64*64];
 };
 
-void world_clear_entities(World* world) {
-    for (int i = 0; i < world->grid_height*world->grid_width; ++i) {
-        world->grid_nodes[i].num_entities = 0;
+void world_clear_entities(World* world, const vec2& bounds_min, const vec2& bounds_max) {
+    int node_x = int(bounds_min.x) >> world->grid_node_size;
+    int node_y = int(bounds_min.y) >> world->grid_node_size;
+
+    int node_end_x = (int(bounds_max.x) >> world->grid_node_size);
+    int node_end_y = (int(bounds_max.y) >> world->grid_node_size);
+
+    if (node_x < 0) node_x = 0;
+    if (node_y < 0) node_y = 0;
+
+    if (node_end_x < 0) node_end_x = 0;
+    if (node_end_y < 0) node_end_y = 0;
+
+    if (node_x >= world->grid_width) node_x = world->grid_width - 1;
+    if (node_y >= world->grid_height) node_y = world->grid_height - 1;
+
+    if (node_end_x >= world->grid_width) node_end_x = world->grid_width - 1;
+    if (node_end_y >= world->grid_height) node_end_y = world->grid_height - 1;
+
+    for (int y = node_y; y <= node_end_y; ++y) {
+        for (int x = node_x; x <= node_end_x; ++x) {
+            int i = y*world->grid_height + x;
+            world->grid_nodes[i].num_entities = 0;
+        }
     }
 }
 

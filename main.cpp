@@ -1062,7 +1062,10 @@ int main() {
             app.scene.camera_pos.y = (1<<app.scene.world.grid_node_size)*app.scene.world.grid_height - app.scene.view_height/2;
         }
 
-        world_clear_entities(&app.scene.world);
+        vec2 viewport_min = app.scene.camera_pos - vec2(app.scene.view_width, app.scene.view_width)*0.5f;
+        vec2 viewport_max = app.scene.camera_pos + vec2(app.scene.view_width, app.scene.view_width)*0.5f;
+
+        world_clear_entities(&app.scene.world, viewport_min, viewport_max);
 
         app.scene.sprites[0].pos = player.pos;
         
