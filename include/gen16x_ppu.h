@@ -71,9 +71,9 @@ struct gen16x_sprite {
 
 
 struct gen16x_layer_header {
-    unsigned char layer_type : 4;
-    unsigned char blend_mode : 4;
-    unsigned int vram_offset;
+    unsigned int layer_type : 4;
+    unsigned int blend_mode : 4;
+    unsigned int vram_offset : 24;
     union {
         struct {
             unsigned char flags : 4;
@@ -95,8 +95,8 @@ struct gen16x_layer_header {
             gen16x_transform transform;
         } tile_layer;
         struct {
-            unsigned char sprites_base;
-            unsigned char num_sprites;
+            unsigned int sprites_base : 8;
+            unsigned int num_sprites : 8;
         } sprite_layer;
     };
 };
@@ -107,12 +107,12 @@ typedef void(*gen16x_row_callback_t)(gen16x_ppu*, unsigned int);
 struct gen16x_ppu {
     unsigned short screen_width;
     unsigned short screen_height;
-    unsigned int framebuffer_offset;
     gen16x_row_callback_t row_callback;
     gen16x_layer_header layers[6];
     gen16x_sprite sprites[GEN16X_MAX_SPRITES];
     gen16x_color32 cgram32[256];
     unsigned char vram[512*256*4];
+    unsigned char frambuffer[512*512*4];
 };
 
 

@@ -17,6 +17,7 @@
 
 #include "gen16x.h"
 #include "physics.h"
+#include "gamestate.h"
 #include "scene.h"
 
 #include "shaders.h"
@@ -52,10 +53,9 @@ struct player_state {
 player_state player;
 
 struct application_state {
-    gen16x_ppu ppu;
+    GameState gs;
     gen16x_spu spu;
 
-    Scene scene;
 
     Timer timer;
 
@@ -120,16 +120,16 @@ const unsigned char test_background[1152 * 80] = {
 
 void init_ppu() {
     auto& app = *g_app;
-    memset(&app.ppu, 0, sizeof(app.ppu));
+    memset(&app.gs.ppu, 0, sizeof(app.gs.ppu));
 
     
-    app.ppu.screen_height = 216;
-    app.ppu.screen_width = 384;
-    //app.ppu.framebuffer_offset = sizeof(app.ppu.vram) - (app.ppu.screen_height*app.ppu.screen_width*4);
+    app.gs.ppu.screen_height = 216;
+    app.gs.ppu.screen_width = 384;
+    //app.gs.ppu.framebuffer_offset = sizeof(app.gs.ppu.vram) - (app.gs.ppu.screen_height*app.gs.ppu.screen_width*4);
 
-    printf("Initialized %d bytes of PPU vram\n", (int)sizeof(app.ppu.vram));
-    printf("Initialized %d bytes of PPU cgram\n", (int)sizeof(app.ppu.cgram32));
-    printf("Initialized %d bytes of PPU layer registers\n", (int)sizeof(app.ppu.layers));
+    printf("Initialized %d bytes of PPU vram\n", (int)sizeof(app.gs.ppu.vram));
+    printf("Initialized %d bytes of PPU cgram\n", (int)sizeof(app.gs.ppu.cgram32));
+    printf("Initialized %d bytes of PPU layer registers\n", (int)sizeof(app.gs.ppu.layers));
 }
 
 #ifdef ENABLE_SDL
@@ -244,7 +244,7 @@ bool init_sdl() {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     
     
-    app.window = SDL_CreateWindow("gen16x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, app.ppu.screen_width, app.ppu.screen_height, SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_RESIZABLE);
+    app.window = SDL_CreateWindow("gen16x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, app.gs.ppu.screen_width, app.gs.ppu.screen_height, SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_RESIZABLE);
     
     //SDL_SetWindowResizable(g_window, SDL_TRUE);
     app.context = SDL_GL_CreateContext(app.window);
@@ -253,7 +253,7 @@ bool init_sdl() {
     //SDL_SetWindowFullscreen(g_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     
     SDL_AddEventWatch(watch, NULL);
-    app.surface = SDL_CreateRGBSurfaceWithFormat(0, app.ppu.screen_width, app.ppu.screen_height, 32, SDL_PIXELFORMAT_BGRA32);
+    app.surface = SDL_CreateRGBSurfaceWithFormat(0, app.gs.ppu.screen_width, app.gs.ppu.screen_height, 32, SDL_PIXELFORMAT_BGRA32);
     
     
     
@@ -309,9 +309,8 @@ bool init_opengl() {
     
     glGenTextures(1, &app.framebuffer_texture);
     glBindTexture(GL_TEXTURE_2D, app.framebuffer_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app.ppu.screen_width,
-                 app.ppu.screen_height, 0, GL_BGRA, GL_UNSIGNED_BYTE,
-                 app.ppu.vram + app.ppu.framebuffer_offset);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, app.gs.ppu.screen_width, app.gs.ppu.screen_height,
+        0, GL_BGRA, GL_UNSIGNED_BYTE, app.gs.ppu.frambuffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -396,7 +395,7 @@ bool init_opengl() {
     
     glProgramUniform1i(app.shader_prog, app.texture_uni, 0);
     glProgramUniform2f(app.shader_prog, app.texture_size_uni,
-                       app.ppu.screen_width, app.ppu.screen_height);
+                       app.gs.ppu.screen_width, app.gs.ppu.screen_height);
     int draw_w;
     int draw_h;
     
@@ -419,8 +418,8 @@ void render_opengl() {
     
     
     
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, app.ppu.screen_width, app.ppu.screen_height,
-                    GL_BGRA, GL_UNSIGNED_BYTE, app.ppu.vram + app.ppu.framebuffer_offset);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, app.gs.ppu.screen_width, app.gs.ppu.screen_height,
+                    GL_BGRA, GL_UNSIGNED_BYTE, app.gs.ppu.frambuffer);
     
     
     int d_w, d_h;
@@ -430,20 +429,20 @@ void render_opengl() {
     SDL_GL_GetDrawableSize(app.window, &d_w, &d_h);
     
 
-    float scale_w = float(d_w) / float(app.ppu.screen_width);
-    float scale_h = float(d_h) / float(app.ppu.screen_height);
+    float scale_w = float(d_w) / float(app.gs.ppu.screen_width);
+    float scale_h = float(d_h) / float(app.gs.ppu.screen_height);
     
     int orig_w = d_w;
     int orig_h = d_h;
     
     float scale = (scale_w < scale_h) ? scale_w : scale_h;
     
-    d_w = (int)((float)app.ppu.screen_width*scale/2)*2;
-    d_h = (int)((float)app.ppu.screen_height*scale/2)*2;
+    d_w = (int)((float)app.gs.ppu.screen_width*scale/2)*2;
+    d_h = (int)((float)app.gs.ppu.screen_height*scale/2)*2;
     
-    if (d_w < app.ppu.screen_width || d_w < app.ppu.screen_height) {
-        d_w = (float)app.ppu.screen_width;
-        d_h = (float)app.ppu.screen_height;
+    if (d_w < app.gs.ppu.screen_width || d_w < app.gs.ppu.screen_height) {
+        d_w = (float)app.gs.ppu.screen_width;
+        d_h = (float)app.gs.ppu.screen_height;
     }
     
     
@@ -470,20 +469,20 @@ void render_sdl() {
     d_w = window_surface->w;
     d_h = window_surface->h;
     
-    float scale_w = float(d_w) / float(app.ppu.screen_width);
-    float scale_h = float(d_h) / float(app.ppu.screen_height);
+    float scale_w = float(d_w) / float(app.gs.ppu.screen_width);
+    float scale_h = float(d_h) / float(app.gs.ppu.screen_height);
 
     int orig_w = d_w;
     int orig_h = d_h;
 
     float scale = (scale_w < scale_h) ? scale_w : scale_h;
 
-    d_w = (int)((float)app.ppu.screen_width*scale / 2) * 2;
-    d_h = (int)((float)app.ppu.screen_height*scale / 2) * 2;
+    d_w = (int)((float)app.gs.ppu.screen_width*scale / 2) * 2;
+    d_h = (int)((float)app.gs.ppu.screen_height*scale / 2) * 2;
 
-    if (d_w < app.ppu.screen_width || d_w < app.ppu.screen_height) {
-        d_w = (float)app.ppu.screen_width;
-        d_h = (float)app.ppu.screen_height;
+    if (d_w < app.gs.ppu.screen_width || d_w < app.gs.ppu.screen_height) {
+        d_w = (float)app.gs.ppu.screen_width;
+        d_h = (float)app.gs.ppu.screen_height;
     }
 
 
@@ -492,8 +491,8 @@ void render_sdl() {
     
 
     
-    float ratio_x = float(app.ppu.screen_width)/float(d_w);
-    float ratio_y = float(app.ppu.screen_height)/float(d_h);
+    float ratio_x = float(app.gs.ppu.screen_width)/float(d_w);
+    float ratio_y = float(app.gs.ppu.screen_height)/float(d_h);
     SDL_LockSurface(window_surface);
     int prev_y0 = -1;
     for (int y = 0; y < window_surface->h; ++y) {
@@ -504,7 +503,7 @@ void render_sdl() {
             continue;
         }
         int y0 = ratio_y * (y - offset_h);
-        unsigned int* src_row = (unsigned int*)(app.ppu.vram + app.ppu.framebuffer_offset) + y0 * app.ppu.screen_width;
+        unsigned int* src_row = (unsigned int*)(app.gs.ppu.frambuffer) + y0 * app.gs.ppu.screen_width;
 
         if (prev_y0 == y0) {
             memcpy(dst_row, dst_row - window_surface->pitch / 4, window_surface->pitch);
@@ -725,66 +724,66 @@ int main() {
     
     init_ppu();
 
-    memset(&app.scene, 0, sizeof(app.scene));
+    memset(&app.gs.scene, 0, sizeof(app.gs.scene));
     
-    app.scene.view_width = app.ppu.screen_width;
-    app.scene.view_height = app.ppu.screen_height;
+    app.gs.scene.view_width = app.gs.ppu.screen_width;
+    app.gs.scene.view_height = app.gs.ppu.screen_height;
 
 
-    app.scene.world.tile_layers[1].enabled = true;
-    app.scene.world.tile_layers[1].tilemap_width = 6;
-    app.scene.world.tile_layers[1].tilemap_height = 6;
-    app.scene.world.tile_layers[1].rom_tileset_base = test_tileset_2_tiles;
-    app.scene.world.tile_layers[1].rom_tileset_size = sizeof(test_tileset_2_tiles);
+    app.gs.scene.world.tile_layers[1].enabled = true;
+    app.gs.scene.world.tile_layers[1].tilemap_width = 6;
+    app.gs.scene.world.tile_layers[1].tilemap_height = 6;
+    app.gs.scene.world.tile_layers[1].rom_tileset_base = test_tileset_2_tiles;
+    app.gs.scene.world.tile_layers[1].rom_tileset_size = sizeof(test_tileset_2_tiles);
 
-    app.scene.world.tile_layers[1].rom_tilemap_base = test_map_layer0_tilemap;
-    app.scene.world.tile_layers[1].rom_tilemap_size = sizeof(test_map_layer0_tilemap);
+    app.gs.scene.world.tile_layers[1].rom_tilemap_base = test_map_layer0_tilemap;
+    app.gs.scene.world.tile_layers[1].rom_tilemap_size = sizeof(test_map_layer0_tilemap);
 
-    app.scene.world.tile_layers[1].rom_cgram_base = test_tileset_2_palette;
-    app.scene.world.tile_layers[1].rom_cgram_size = sizeof(test_tileset_2_palette);
+    app.gs.scene.world.tile_layers[1].rom_cgram_base = test_tileset_2_palette;
+    app.gs.scene.world.tile_layers[1].rom_cgram_size = sizeof(test_tileset_2_palette);
 
-    app.scene.world.tile_layers[2].enabled = true;
-    app.scene.world.tile_layers[2].tilemap_width = 6;
-    app.scene.world.tile_layers[2].tilemap_height = 6;
+    app.gs.scene.world.tile_layers[2].enabled = true;
+    app.gs.scene.world.tile_layers[2].tilemap_width = 6;
+    app.gs.scene.world.tile_layers[2].tilemap_height = 6;
 
-    app.scene.world.tile_layers[2].rom_tileset_base = test_tileset_2_tiles;
-    app.scene.world.tile_layers[2].rom_tileset_size = sizeof(test_tileset_2_tiles);
+    app.gs.scene.world.tile_layers[2].rom_tileset_base = test_tileset_2_tiles;
+    app.gs.scene.world.tile_layers[2].rom_tileset_size = sizeof(test_tileset_2_tiles);
 
-    app.scene.world.tile_layers[2].rom_tilemap_base = test_map_layer1_tilemap;
-    app.scene.world.tile_layers[2].rom_tilemap_size = sizeof(test_map_layer1_tilemap);
+    app.gs.scene.world.tile_layers[2].rom_tilemap_base = test_map_layer1_tilemap;
+    app.gs.scene.world.tile_layers[2].rom_tilemap_size = sizeof(test_map_layer1_tilemap);
 
-    app.scene.world.tile_layers[2].rom_cgram_base = test_tileset_2_palette;
-    app.scene.world.tile_layers[2].rom_cgram_size = sizeof(test_tileset_2_palette);
+    app.gs.scene.world.tile_layers[2].rom_cgram_base = test_tileset_2_palette;
+    app.gs.scene.world.tile_layers[2].rom_cgram_size = sizeof(test_tileset_2_palette);
 
 
 
     char test_text[32] = {0};
 
-    app.scene.world.tile_layers[4].enabled = true;
-    app.scene.world.tile_layers[4].tilemap_width = 5;
-    app.scene.world.tile_layers[4].tilemap_height = 0;
-    app.scene.world.tile_layers[4].position.x = 4;
-    app.scene.world.tile_layers[4].position.y = 4;
-    app.scene.world.tile_layers[4].rom_tileset_base = test_font_tiles;
-    app.scene.world.tile_layers[4].rom_tileset_size = sizeof(test_font_tiles);
-    app.scene.world.tile_layers[4].rom_tilemap_base = test_text;
-    app.scene.world.tile_layers[4].rom_tilemap_size = sizeof(test_text);
-    app.scene.world.tile_layers[4].rom_cgram_base = test_font_palette;
-    app.scene.world.tile_layers[4].rom_cgram_size = sizeof(test_font_palette);
+    app.gs.scene.world.tile_layers[4].enabled = true;
+    app.gs.scene.world.tile_layers[4].tilemap_width = 5;
+    app.gs.scene.world.tile_layers[4].tilemap_height = 0;
+    app.gs.scene.world.tile_layers[4].position.x = 4;
+    app.gs.scene.world.tile_layers[4].position.y = 4;
+    app.gs.scene.world.tile_layers[4].rom_tileset_base = test_font_tiles;
+    app.gs.scene.world.tile_layers[4].rom_tileset_size = sizeof(test_font_tiles);
+    app.gs.scene.world.tile_layers[4].rom_tilemap_base = test_text;
+    app.gs.scene.world.tile_layers[4].rom_tilemap_size = sizeof(test_text);
+    app.gs.scene.world.tile_layers[4].rom_cgram_base = test_font_palette;
+    app.gs.scene.world.tile_layers[4].rom_cgram_size = sizeof(test_font_palette);
 
 
 
 
-    app.scene.num_sprites = 1;
-    app.scene.sprites[0].visible = true;
-    app.scene.sprites[0].current_frame = 0;
-    app.scene.sprites[0].rom_cgram_base = test_sprite3_palette;
-    app.scene.sprites[0].rom_cgram_size = sizeof(test_sprite3_palette);
-    app.scene.sprites[0].rom_sprite_base = test_sprite3_tiles;
-    app.scene.sprites[0].rom_sprite_size = sizeof(test_sprite3_tiles);
-    app.scene.sprites[0].size_w = 5;
-    app.scene.sprites[0].size_h = 5;
-    app.scene.sprites[0].scale = vec2(1,1);
+    app.gs.scene.num_sprites = 1;
+    app.gs.scene.sprites[0].visible = true;
+    app.gs.scene.sprites[0].current_frame = 0;
+    app.gs.scene.sprites[0].rom_cgram_base = test_sprite3_palette;
+    app.gs.scene.sprites[0].rom_cgram_size = sizeof(test_sprite3_palette);
+    app.gs.scene.sprites[0].rom_sprite_base = test_sprite3_tiles;
+    app.gs.scene.sprites[0].rom_sprite_size = sizeof(test_sprite3_tiles);
+    app.gs.scene.sprites[0].size_w = 5;
+    app.gs.scene.sprites[0].size_h = 5;
+    app.gs.scene.sprites[0].scale = vec2(1,1);
     
     WorldEntity sprite_ent;
     sprite_ent.layer = 0;
@@ -795,20 +794,16 @@ int main() {
     int used_vram = 0;
     int used_cgram = 0;
 
-    scene_load_ppu(&app.scene, &app.ppu, &used_vram, &used_cgram);
+    scene_load_ppu(&app.gs.scene, &app.gs.ppu, &used_vram, &used_cgram);
     
 
     printf("Initialized Scene utilizing %d bytes of PPU vram and %d bytes of cgram\n", used_vram, used_cgram);
 
-    app.ppu.framebuffer_offset = ((used_vram + 8) >> 4) << 4;
-
-    printf("Framebuffer location: 0x%08llx\n", (app.ppu.vram + app.ppu.framebuffer_offset));
-
     init_spu();
     
-    app.scene.world.grid_node_size = 4;
-    app.scene.world.grid_width = 64;
-    app.scene.world.grid_height = 64;
+    app.gs.scene.world.grid_node_size = 4;
+    app.gs.scene.world.grid_width = 64;
+    app.gs.scene.world.grid_height = 64;
     
     
 
@@ -845,7 +840,7 @@ int main() {
         player_aabb.origin = player.pos - vec2(4);
         player_aabb.size = vec2(8);
 
-        app.scene.sprites[0].origin = vec2(16, 30);
+        app.gs.scene.sprites[0].origin = vec2(16, 30);
 
 
         if (player.state != 2) {
@@ -957,7 +952,7 @@ int main() {
         }
 
 
-        app.scene.sprites[0].priority = 0;
+        app.gs.scene.sprites[0].priority = 0;
         player_aabb.origin = player.pos - vec2(8, 16);
         player_aabb.size = vec2(16);
 
@@ -972,7 +967,7 @@ int main() {
             }
 
             if (collision_box_convex(player_aabb, cc)) {
-                app.scene.sprites[0].priority = 1;
+                app.gs.scene.sprites[0].priority = 1;
                 
                 break;
             }
@@ -981,9 +976,9 @@ int main() {
 
 
         if (player.state == 0) {
-            app.scene.sprites[0].current_frame = player.dir;
+            app.gs.scene.sprites[0].current_frame = player.dir;
         } else if (player.state == 1) {
-            app.scene.sprites[0].current_frame = (6*(1 + player.dir) + int(app.current_time*12.0)%6);
+            app.gs.scene.sprites[0].current_frame = (6*(1 + player.dir) + int(app.current_time*12.0)%6);
 
         } else if (player.state == 2) {
             
@@ -992,16 +987,16 @@ int main() {
             if (attack_frame >= 3) {
                 player.state = 0;
                 attack_time = 0;
-                //app.ppu.layers[1].sprite_layer.sprites[1].flags = 0;
+                //app.gs.ppu.layers[1].sprite_layer.sprites[1].flags = 0;
             } else {
-                //app.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(30 + attack_frame);
+                //app.gs.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(30 + attack_frame);
                 
                 int offsets[] = {-7, 10, 6};
-                app.scene.sprites[0].current_frame = 30 + attack_frame;
-                app.scene.sprites[0].origin.x = 16 - offsets[attack_frame];
-                //app.ppu.layers[1].sprite_layer.sprites[0].x = offsets[attack_frame] + app.ppu.screen_width/2 - 16;
-                //app.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*(3*player.dir + attack_frame) + sizeof(test_sprite3_tiles)/32;
-                //app.ppu.layers[1].sprite_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
+                app.gs.scene.sprites[0].current_frame = 30 + attack_frame;
+                app.gs.scene.sprites[0].origin.x = 16 - offsets[attack_frame];
+                //app.gs.ppu.layers[1].sprite_layer.sprites[0].x = offsets[attack_frame] + app.gs.ppu.screen_width/2 - 16;
+                //app.gs.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*(3*player.dir + attack_frame) + sizeof(test_sprite3_tiles)/32;
+                //app.gs.ppu.layers[1].sprite_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
 
                 attack_time += app.delta_time;
             }
@@ -1033,46 +1028,50 @@ int main() {
         //float sprite_s_y =  cam_right_y*(sprite_x - player.pos_x) + cam_forward_y*(sprite_y - player.pos_y) + cam_up_y*(sprite_z - player.height) + player.pos_y;// +cam_up_x*(sprite_z - player.height);
         //float sprite_s_z =  cam_right_x*(sprite_x - player.pos_x) + cam_forward_x*(sprite_y - player.pos_y) + cam_up_x*(sprite_z - player.height);
         //float scale_factor = sprite_p;// 16 + sprite_d;
-        //app.ppu.layers[3].sprite_layer.sprites[2].scale_x = app.ppu.layers[3].sprite_layer.sprites[2].scale_y = scale_factor;
-        //app.ppu.layers[3].sprite_layer.sprites[2].y = 80 - (16*32)/(scale_factor);// app.ppu.screen_height/2;
-        //app.ppu.layers[3].sprite_layer.sprites[2].x = (app.ppu.screen_width/2)*sprite_s_x/(sprite_p/16) + app.ppu.screen_width/2  - (16*256)/(scale_factor);
+        //app.gs.ppu.layers[3].sprite_layer.sprites[2].scale_x = app.gs.ppu.layers[3].sprite_layer.sprites[2].scale_y = scale_factor;
+        //app.gs.ppu.layers[3].sprite_layer.sprites[2].y = 80 - (16*32)/(scale_factor);// app.gs.ppu.screen_height/2;
+        //app.gs.ppu.layers[3].sprite_layer.sprites[2].x = (app.gs.ppu.screen_width/2)*sprite_s_x/(sprite_p/16) + app.gs.ppu.screen_width/2  - (16*256)/(scale_factor);
         
 
 
-        //app.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*((frame_no/3)%(12)) + sizeof(test_sprite3_tiles)/32;
-        //unsigned char sprite_flags = app.ppu.layers[3].sprite_layer.sprites[2].flags;
+        //app.gs.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*((frame_no/3)%(12)) + sizeof(test_sprite3_tiles)/32;
+        //unsigned char sprite_flags = app.gs.ppu.layers[3].sprite_layer.sprites[2].flags;
 
-        //app.ppu.layers[3].sprite_layer.sprites[2].flags = (sprite_p > 0) ? GEN16X_FLAG_SPRITE_ENABLED | sprite_flags : ~GEN16X_FLAG_SPRITE_ENABLED & sprite_flags;
+        //app.gs.ppu.layers[3].sprite_layer.sprites[2].flags = (sprite_p > 0) ? GEN16X_FLAG_SPRITE_ENABLED | sprite_flags : ~GEN16X_FLAG_SPRITE_ENABLED & sprite_flags;
 
 
-        app.scene.camera_pos = player.pos;
-        if (app.scene.camera_pos.x < app.scene.view_width/2) {
-            app.scene.camera_pos.x = app.scene.view_width/2;
+        app.gs.scene.camera_pos = player.pos;
+        if (app.gs.scene.camera_pos.x < app.gs.scene.view_width/2) {
+            app.gs.scene.camera_pos.x = app.gs.scene.view_width/2;
         }
 
-        if (app.scene.camera_pos.y < app.scene.view_height/2) {
-            app.scene.camera_pos.y = app.scene.view_height/2;
+        if (app.gs.scene.camera_pos.y < app.gs.scene.view_height/2) {
+            app.gs.scene.camera_pos.y = app.gs.scene.view_height/2;
         }
 
-        if (app.scene.camera_pos.x > (1<<app.scene.world.grid_node_size)*app.scene.world.grid_width - app.scene.view_width/2) {
-            app.scene.camera_pos.x = (1<<app.scene.world.grid_node_size)*app.scene.world.grid_width - app.scene.view_width/2;
+        if (app.gs.scene.camera_pos.x > (1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_width - app.gs.scene.view_width/2) {
+            app.gs.scene.camera_pos.x = (1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_width - app.gs.scene.view_width/2;
         }
 
-        if (app.scene.camera_pos.y > (1<<app.scene.world.grid_node_size)*app.scene.world.grid_height - app.scene.view_height/2) {
-            app.scene.camera_pos.y = (1<<app.scene.world.grid_node_size)*app.scene.world.grid_height - app.scene.view_height/2;
+        if (app.gs.scene.camera_pos.y > (1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_height - app.gs.scene.view_height/2) {
+            app.gs.scene.camera_pos.y = (1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_height - app.gs.scene.view_height/2;
         }
 
-        vec2 viewport_min = app.scene.camera_pos - vec2(app.scene.view_width, app.scene.view_width)*0.5f;
-        vec2 viewport_max = app.scene.camera_pos + vec2(app.scene.view_width, app.scene.view_width)*0.5f;
+        vec2 viewport_min = app.gs.scene.camera_pos - vec2(app.gs.scene.view_width, app.gs.scene.view_width)*0.5f;
+        vec2 viewport_max = app.gs.scene.camera_pos + vec2(app.gs.scene.view_width, app.gs.scene.view_width)*0.5f;
 
-        world_clear_entities(&app.scene.world, viewport_min, viewport_max);
+        world_clear_entities(&app.gs.scene.world, viewport_min, viewport_max);
 
-        app.scene.sprites[0].pos = player.pos;
+        app.gs.scene.sprites[0].pos = player.pos;
         
-        world_insert_entity(&app.scene.world, sprite_ent, player.pos - player_aabb.size/2.0f, player.pos + player_aabb.size/2.0f);
+        world_insert_entity(&app.gs.scene.world, sprite_ent, player.pos - player_aabb.size/2.0f, player.pos + player_aabb.size/2.0f);
 
-        scene_render_ppu(&app.scene, &app.ppu);
-        gen16x_ppu_render(&app.ppu);
+        
+        
+        
+        gamestate_tick(&app.gs, app.delta_time);
+
+        gen16x_ppu_render(&app.gs.ppu);
         #ifdef ENABLE_SDL
             if (app.opengl_enabled) {
                 render_opengl();
@@ -1089,7 +1088,7 @@ int main() {
             app.delta_time = (float)(app.timer.elapsed() / app.frame_no);
             sprintf(fps_text, "FPS: %0.2f %0.2f ms\n", app.frame_no / app.timer.elapsed(), 1000.0f*app.timer.elapsed()/app.frame_no);
             printf("%s", fps_text);
-            unsigned char* tilemap_layer4 = (app.ppu.vram + app.ppu.layers[app.scene.world.tile_layers[4].ppu_layer].tile_layer.tilemap_vram_offset);
+            unsigned char* tilemap_layer4 = (app.gs.ppu.vram + app.gs.ppu.layers[app.gs.scene.world.tile_layers[4].ppu_layer].tile_layer.tilemap_vram_offset);
             strncpy((char*)tilemap_layer4, fps_text, 32);
             
             app.frame_no = 0.0;

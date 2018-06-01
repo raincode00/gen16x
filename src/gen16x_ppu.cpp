@@ -502,7 +502,7 @@ void gen16x_ppu_render(gen16x_ppu* ppu) {
             ppu->row_callback(ppu, y);
         }
         
-        unsigned int* row_pixels = (unsigned int*)(ppu->vram + ppu->framebuffer_offset) + y*ppu->screen_width;
+        unsigned int* row_pixels = (unsigned int*)(ppu->frambuffer) + y*ppu->screen_width;
         memset(row_pixels, 0, ppu->screen_width*4);
 
         for (int l = 0; l < 6; l++) {
