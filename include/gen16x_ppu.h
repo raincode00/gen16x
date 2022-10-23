@@ -118,4 +118,4 @@ struct gen16x_ppu {
 
 
 
-void gen16x_ppu_render(gen16x_ppu* ppu);
+extern "C" void gen16x_ppu_render(gen16x_ppu * ppu);

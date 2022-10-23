@@ -35,10 +35,11 @@ file(GLOB gen16x_HEADERS
 	"${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
 file(GLOB gen16x_SRC 
 	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"  )
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"  
+	"${CMAKE_CURRENT_SOURCE_DIR}/game/*.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/game/*.h"  )
 
 add_executable(gen16x ${gen16x_HEADERS} ${gen16x_SRC} "main.cpp")
-
 
 target_link_libraries(gen16x ${SDL2_LIBRARIES} ${GLEW_LIBRARY})
 find_package(OpenGL REQUIRED)
@@ -53,6 +54,7 @@ endif()
 if(APPLE)
     include_directories("/System/Library/Frameworks")
 endif()
+
 
 if(MSVC)
 	foreach(flag_var

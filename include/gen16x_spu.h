@@ -88,4 +88,4 @@ struct gen16x_spu {
 
 
 
-void gen16x_spu_tick(gen16x_spu* spu);
+extern "C" void gen16x_spu_tick(gen16x_spu * spu);

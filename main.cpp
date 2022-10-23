@@ -1094,8 +1094,8 @@ int main() {
 
           float persp_lerp = (1.0f + sinf((float)app.gs.time));
           float z = 100.0f/(100.0f*(1.0f - 0.5f*persp_lerp) + row * persp_lerp);
-          float ct = cos(t);
-          float st = sin(t);
+          float ct = cos(0);
+          float st = sin(0);
           ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.a   = int( 256.0* ct*z);// int(30.0 * sinf(0.0125f * (float)row));
           ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.a   = int( 256.0* ct*z);// int(30.0 * sinf(0.0125f * (float)row));
           ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.b   = int(-256.0* st*z);// int(30.0 * sinf(0.0125f * (float)row));

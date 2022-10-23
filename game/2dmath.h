@@ -1,7 +1,6 @@
 #pragma once
 #include <math.h>
 
-
 struct vec2 {
     float x;
     float y;
@@ -117,7 +116,7 @@ inline vec2 normalized(const vec2& v) {
     return v0;
 }
 
-vec2 closest_point_on_edge(const vec2& p, const vec2& e0, const vec2& e1) { 
+inline vec2 closest_point_on_edge(const vec2& p, const vec2& e0, const vec2& e1) { 
     vec2 c = p - e0;
     vec2 v = e1 - e0;
 
@@ -137,7 +136,7 @@ vec2 closest_point_on_edge(const vec2& p, const vec2& e0, const vec2& e1) {
 }
 
 
-float signed_sqr_dist_to_edge(const vec2& p, const vec2& e0, const vec2& e1) { 
+inline float signed_sqr_dist_to_edge(const vec2& p, const vec2& e0, const vec2& e1) { 
     vec2 c = p - e0;
     vec2 v = e1 - e0;
     return dot(vec2(-v.y, v.x), c);
