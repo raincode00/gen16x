@@ -1,5 +1,4 @@
-#pragma once;
-
+#pragma once
 
 union PlayerInput {
     struct {

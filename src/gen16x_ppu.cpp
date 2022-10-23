@@ -499,7 +499,7 @@ void gen16x_ppu_render(gen16x_ppu* ppu) {
 
     for (int y = 0; y < ppu->screen_height; ++y) {
         if (ppu->row_callback) {
-            ppu->row_callback(ppu, y);
+            ppu->row_callback(ppu, y, ppu->row_callback_user);
         }
         
         unsigned int* row_pixels = (unsigned int*)(ppu->frambuffer) + y*ppu->screen_width;

@@ -91,7 +91,7 @@ struct application_state {
 };
 
 static application_state* g_app;
-
+static bool g_mode7_activate;
 
 
 //#include "assets/test_sprite_tiles.h"
@@ -199,14 +199,14 @@ void init_spu() {
     
 
     short* voice = (short*)app.spu.sram;
-    for (int i = 0; i < app.spu.channels[0].voice_samples; i++) {
+    for (unsigned i = 0; i < app.spu.channels[0].voice_samples; i++) {
         float fade_in = i / 8000.0f;
-        fade_in = fade_in > 1.0 ? 1.0 : fade_in;
+        fade_in = fade_in > 1.0f ? 1.0f : fade_in;
 
         float fade_out = (app.spu.channels[0].voice_samples - i) / 8000.0f;
-        fade_out = fade_out > 1.0 ? 1.0 : fade_in;
+        fade_out = fade_out > 1.0f ? 1.0f : fade_in;
 
-        short signal = 0.0*sinf(440.0f*(2*M_PI)*float(i)/SAMPLE_RATE);
+        short signal = short(0.0f*sinf(440.0f*float(2.0*M_PI)*float(i)/SAMPLE_RATE));
         voice[(i * 2)] = signal;
         voice[(i * 2) + 1] = signal;
 
@@ -441,15 +441,15 @@ void render_opengl() {
     d_h = (int)((float)app.gs.ppu.screen_height*scale/2)*2;
     
     if (d_w < app.gs.ppu.screen_width || d_w < app.gs.ppu.screen_height) {
-        d_w = (float)app.gs.ppu.screen_width;
-        d_h = (float)app.gs.ppu.screen_height;
+        d_w = app.gs.ppu.screen_width;
+        d_h = app.gs.ppu.screen_height;
     }
     
     
     int offset_w = (orig_w - d_w) / 2;
     int offset_h = (orig_h - d_h) / 2;
     
-    glProgramUniform2f(app.shader_prog, app.display_size_uni, d_w, d_h);
+    glProgramUniform2f(app.shader_prog, app.display_size_uni, (float)d_w, (float)d_h);
     glViewport(offset_w, offset_h, d_w, d_h);
     
     glClear(GL_COLOR_BUFFER_BIT);
@@ -481,8 +481,8 @@ void render_sdl() {
     d_h = (int)((float)app.gs.ppu.screen_height*scale / 2) * 2;
 
     if (d_w < app.gs.ppu.screen_width || d_w < app.gs.ppu.screen_height) {
-        d_w = (float)app.gs.ppu.screen_width;
-        d_h = (float)app.gs.ppu.screen_height;
+        d_w = app.gs.ppu.screen_width;
+        d_h = app.gs.ppu.screen_height;
     }
 
 
@@ -502,7 +502,7 @@ void render_sdl() {
             memset(dst_row, 0, window_surface->pitch);
             continue;
         }
-        int y0 = ratio_y * (y - offset_h);
+        int y0 = (int)(ratio_y * (y - offset_h));
         unsigned int* src_row = (unsigned int*)(app.gs.ppu.frambuffer) + y0 * app.gs.ppu.screen_width;
 
         if (prev_y0 == y0) {
@@ -518,7 +518,7 @@ void render_sdl() {
                 continue;
             }
 
-            int x0 = ratio_x * (x - offset_w);
+            int x0 = (int)(ratio_x * (x - offset_w));
             if (prev_x0 == x0) {
                 dst_row[x] = prev_pixel;
                 continue;
@@ -592,41 +592,48 @@ void handle_sdl_input() {
 
     vec2 forward = vec2(-sinf(3.1415926f*player.rot/180.0f), cosf(3.1415926f*player.rot/180.0f));
 
+    float dt = (float)app.delta_time;
+
+    if (kbstate[SDL_SCANCODE_M])
+    {
+      g_mode7_activate = true;
+    }
+    else
+    {
+      g_mode7_activate = false ;
+    }
     if (kbstate[SDL_SCANCODE_W]) {
-        
-        
-        player.pos += speed_scale*10.0f*app.delta_time*forward;
-        
+        player.pos += speed_scale*10.0f*dt*forward;
     }
     
     if (kbstate[SDL_SCANCODE_S]) {
 
         
-        player.pos += 5.0f*speed_scale*app.delta_time*-forward;
+        player.pos += 5.0f*speed_scale*dt*-forward;
         
     }
     
     if (kbstate[SDL_SCANCODE_A]) {
-        player.rot += 10.0f*speed_scale*app.delta_time;
+        player.rot += 10.0f*speed_scale*dt;
     }
     
     if (kbstate[SDL_SCANCODE_D]) {
-        player.rot -= 10.0f*speed_scale*app.delta_time;
+        player.rot -= 10.0f*speed_scale*dt;
     }
     
     if (kbstate[SDL_SCANCODE_F]) {
-        player.height -= 4.0f*speed_scale*app.delta_time;
+        player.height -= 4.0f*speed_scale*dt;
         if (player.height < 0) player.height = 0;
     }
     if (kbstate[SDL_SCANCODE_R]) {
-        player.height += 4.0f*speed_scale*app.delta_time;
+        player.height += 4.0f*speed_scale*dt;
     }
     
     if (kbstate[SDL_SCANCODE_R]) {
-        player.height += 4.0f*speed_scale*app.delta_time;
+        player.height += 4.0f*speed_scale*dt;
     }
     if (kbstate[SDL_SCANCODE_N]) {
-        if (!keydown[SDL_SCANCODE_N]) {
+        if (!keydown[SDL_SCANCODE_N]) { 
             keydown[SDL_SCANCODE_N] = true;
             app.spu.channels[0].voice_playing = 1;
             app.spu.channels[0].gain_target = GEN16X_DSP_MAX_VOLUME;
@@ -648,7 +655,7 @@ void handle_sdl_input() {
     if (kbstate[SDL_SCANCODE_M]) {
         if (!keydown[SDL_SCANCODE_M]) {
             keydown[SDL_SCANCODE_M] = true;
-            app.spu.channels[0].pitch = (((523.25f - 440.0f)*GEN16X_DSP_BASE_PITCH)/440.0f);
+            app.spu.channels[0].pitch = short((((523.25f - 440.0f)*GEN16X_DSP_BASE_PITCH)/440.0f));
             printf("Keydown\n");
         }
     } else if (keydown[SDL_SCANCODE_M]) {
@@ -662,27 +669,27 @@ void handle_sdl_input() {
     player.move.x = 0;
     player.move.y = 0;
     if (kbstate[SDL_SCANCODE_UP]) {
-        //player.pos_y += 5.0f*speed_scale*app.delta_time;
+        //player.pos_y += 5.0f*speed_scale*dt;
         player.rot = 0;
         player.moving = true;
         player.move.y += -1;
     }
     if (kbstate[SDL_SCANCODE_DOWN]) {
-        //player.pos_y -= 5.0f*speed_scale*app.delta_time;
+        //player.pos_y -= 5.0f*speed_scale*dt;
         player.rot = 180;
         player.moving = true;
         player.move.y += 1;
     }
 
     if (kbstate[SDL_SCANCODE_LEFT]) {
-        //player.pos_x -= 5.0f*speed_scale*app.delta_time;
+        //player.pos_x -= 5.0f*speed_scale*dt;
         player.rot = 270;
         player.move.x += -1;
         player.moving = true;
     }
     
     if (kbstate[SDL_SCANCODE_RIGHT]) {
-        //player.pos_x += 5.0f*speed_scale*app.delta_time;
+        //player.pos_x += 5.0f*speed_scale*dt;
         player.move.x += 1;
         player.rot = 90;
         player.moving = true;
@@ -884,7 +891,7 @@ int main() {
                         normalize(mv);
                     }
 
-                    vec2 player_dxdy = 20*6.0f*(mv)*app.delta_time/3.0f;
+                    vec2 player_dxdy = 20*6.0f*(mv)*float(app.gs.delta_time)/3.0f;
 
                     player_aabb.origin = player.pos - vec2(4) + player_dxdy;
                     player_aabb.size = vec2(8);
@@ -892,16 +899,16 @@ int main() {
                     int n_collisions = 0;
                     vec2 avg = 0;
                     vec2 avg_n = 0;
-                    float closest_d = 999999999;
+                    float closest_d = 999999999.9f;
                     int num_polyons = sizeof(test_map_objects2)/sizeof(test_map_objects2[0]);
                     for (int i = 0; i < num_polyons; i++) {
                         ConvexCollider cc;
-                        cc.origin.x = test_map_objects2[i][0];
-                        cc.origin.y = test_map_objects2[i][1];
+                        cc.origin.x = (float)test_map_objects2[i][0];
+                        cc.origin.y = (float)test_map_objects2[i][1];
                         cc.num_edges = test_map_objects2[i][2];
                         for (int j = 0; j < 12; j++) {
-                            cc.edges[j].x = test_map_objects2[i][3 + j*2];
-                            cc.edges[j].y = test_map_objects2[i][3 + j*2 + 1];
+                            cc.edges[j].x = (float)test_map_objects2[i][3 + j*2];
+                            cc.edges[j].y = (float)test_map_objects2[i][3 + j*2 + 1];
                         }
 
                         if (collision_box_convex(player_aabb, cc)) {
@@ -958,12 +965,12 @@ int main() {
 
         for (int i = 0; i < sizeof(test_map_objects3)/sizeof(test_map_objects3[0]); i++) {
             ConvexCollider cc;
-            cc.origin.x = test_map_objects3[i][0];
-            cc.origin.y = test_map_objects3[i][1];
+            cc.origin.x =  (float)test_map_objects3[i][0];
+            cc.origin.y =  (float)test_map_objects3[i][1];
             cc.num_edges = test_map_objects3[i][2];
             for (int j = 0; j < 12; j++) {
-                cc.edges[j].x = test_map_objects3[i][3 + j*2];
-                cc.edges[j].y = test_map_objects3[i][3 + j*2 + 1];
+                cc.edges[j].x = (float)test_map_objects3[i][3 + j*2];
+                cc.edges[j].y = (float)test_map_objects3[i][3 + j*2 + 1];
             }
 
             if (collision_box_convex(player_aabb, cc)) {
@@ -993,12 +1000,12 @@ int main() {
                 
                 int offsets[] = {-7, 10, 6};
                 app.gs.scene.sprites[0].current_frame = 30 + attack_frame;
-                app.gs.scene.sprites[0].origin.x = 16 - offsets[attack_frame];
+                app.gs.scene.sprites[0].origin.x = float(16 - offsets[attack_frame]);
                 //app.gs.ppu.layers[1].sprite_layer.sprites[0].x = offsets[attack_frame] + app.gs.ppu.screen_width/2 - 16;
                 //app.gs.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*(3*player.dir + attack_frame) + sizeof(test_sprite3_tiles)/32;
                 //app.gs.ppu.layers[1].sprite_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
 
-                attack_time += app.delta_time;
+                attack_time += app.gs.delta_time;
             }
             
 
@@ -1041,24 +1048,24 @@ int main() {
 
 
         app.gs.scene.camera_pos = player.pos;
-        if (app.gs.scene.camera_pos.x < app.gs.scene.view_width/2) {
-            app.gs.scene.camera_pos.x = app.gs.scene.view_width/2;
+        if (app.gs.scene.camera_pos.x < (float)app.gs.scene.view_width/2) {
+            app.gs.scene.camera_pos.x = (float)app.gs.scene.view_width/2;
         }
 
-        if (app.gs.scene.camera_pos.y < app.gs.scene.view_height/2) {
-            app.gs.scene.camera_pos.y = app.gs.scene.view_height/2;
+        if (app.gs.scene.camera_pos.y < (float)app.gs.scene.view_height/2) {
+            app.gs.scene.camera_pos.y = (float)app.gs.scene.view_height/2;
         }
 
-        if (app.gs.scene.camera_pos.x > (1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_width - app.gs.scene.view_width/2) {
-            app.gs.scene.camera_pos.x = (1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_width - app.gs.scene.view_width/2;
+        if (app.gs.scene.camera_pos.x > (float)(1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_width - app.gs.scene.view_width/2) {
+            app.gs.scene.camera_pos.x = (float)(1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_width - app.gs.scene.view_width/2;
         }
 
-        if (app.gs.scene.camera_pos.y > (1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_height - app.gs.scene.view_height/2) {
-            app.gs.scene.camera_pos.y = (1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_height - app.gs.scene.view_height/2;
+        if (app.gs.scene.camera_pos.y > (float)(1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_height - app.gs.scene.view_height/2) {
+            app.gs.scene.camera_pos.y = (float)(1<<app.gs.scene.world.grid_node_size)*app.gs.scene.world.grid_height - app.gs.scene.view_height/2;
         }
 
-        vec2 viewport_min = app.gs.scene.camera_pos - vec2(app.gs.scene.view_width, app.gs.scene.view_width)*0.5f;
-        vec2 viewport_max = app.gs.scene.camera_pos + vec2(app.gs.scene.view_width, app.gs.scene.view_width)*0.5f;
+        vec2 viewport_min = app.gs.scene.camera_pos - vec2((float)app.gs.scene.view_width, (float)app.gs.scene.view_width) * 0.5f;
+        vec2 viewport_max = app.gs.scene.camera_pos + vec2((float)app.gs.scene.view_width, (float)app.gs.scene.view_width)*0.5f;
 
         world_clear_entities(&app.gs.scene.world, viewport_min, viewport_max);
 
@@ -1069,7 +1076,39 @@ int main() {
         
         
         
-        gamestate_tick(&app.gs, app.delta_time);
+        gamestate_tick(&app.gs, (float)app.delta_time);
+        app.gs.ppu.row_callback_user = &app;
+
+        if (g_mode7_activate) {
+          app.gs.ppu.layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.flags |= GEN16X_FLAG_TRANSFORM;
+          app.gs.ppu.layers[SCENE_TILE_FOREGROUND_LAYER].tile_layer.flags |= GEN16X_FLAG_TRANSFORM;
+        }
+        else {
+          app.gs.ppu.layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.flags &= ~GEN16X_FLAG_TRANSFORM;
+          app.gs.ppu.layers[SCENE_TILE_FOREGROUND_LAYER].tile_layer.flags &= ~GEN16X_FLAG_TRANSFORM;
+        }
+
+        app.gs.ppu.row_callback = (gen16x_row_callback_t)+[](gen16x_ppu* ppu, int row, void* user) {
+          application_state& app = *(application_state*)user;
+          float t = (float)app.gs.time;
+
+          float persp_lerp = (1.0f + sinf((float)app.gs.time));
+          float z = 100.0f/(100.0f*(1.0f - 0.5f*persp_lerp) + row * persp_lerp);
+          float ct = cos(t);
+          float st = sin(t);
+          ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.a   = int( 256.0* ct*z);// int(30.0 * sinf(0.0125f * (float)row));
+          ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.a   = int( 256.0* ct*z);// int(30.0 * sinf(0.0125f * (float)row));
+          ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.b   = int(-256.0* st*z);// int(30.0 * sinf(0.0125f * (float)row));
+          ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.b   = int(-256.0* st*z);// int(30.0 * sinf(0.0125f * (float)row));
+          ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.c   = int( 256.0* st*z);// int(30.0 * sinf(0.0125f * (float)row));
+          ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.c   = int( 256.0* st*z);// int(30.0 * sinf(0.0125f * (float)row));
+          ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.d   = int( 256.0* ct*z);// int(30.0 * sinf(0.0125f * (float)row));
+          ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.d   = int( 256.0* ct*z);// int(30.0 * sinf(0.0125f * (float)row));
+          ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.cx  = int(app.gs.scene.camera_pos.x);//int(1000.0 * sinf(0.125f * (float)row + 2.0f*app.gs.time));
+          ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.cx  = int(app.gs.scene.camera_pos.x);//int(1000.0 * sinf(0.125f * (float)row + 2.0f*app.gs.time));
+          ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.cy  = int(app.gs.scene.camera_pos.y);//int(1000.0 * sinf(0.125f * (float)row + 2.0f*app.gs.time));
+          ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.cy  = int(app.gs.scene.camera_pos.y);//int(1000.0 * sinf(0.125f * (float)row + 2.0f*app.gs.time));
+        };
 
         gen16x_ppu_render(&app.gs.ppu);
         #ifdef ENABLE_SDL

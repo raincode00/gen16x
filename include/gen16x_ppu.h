@@ -102,12 +102,13 @@ struct gen16x_layer_header {
 };
 struct gen16x_ppu;
 
-typedef void(*gen16x_row_callback_t)(gen16x_ppu*, unsigned int);
+typedef void (__cdecl *gen16x_row_callback_t)(gen16x_ppu*, unsigned int, void*);
 
 struct gen16x_ppu {
     unsigned short screen_width;
     unsigned short screen_height;
     gen16x_row_callback_t row_callback;
+    void* row_callback_user;
     gen16x_layer_header layers[6];
     gen16x_sprite sprites[GEN16X_MAX_SPRITES];
     gen16x_color32 cgram32[256];
