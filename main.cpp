@@ -46,8 +46,11 @@ struct player_state {
     vec2 move;
     vec2 forward;
     bool moving;
+    int jumping;
     int state;
     int dir;
+    vec2 velocity;
+    BoxCollider aabb;
 };
 
 player_state player;
@@ -86,19 +89,20 @@ struct application_state {
     int display_size_uni;
     int texture_size_uni;
     
-    
+    int background_index;
     
 };
 
 static application_state* g_app;
 static bool g_mode7_activate;
+void update_player_state(application_state& app);
 
 
 //#include "assets/test_sprite_tiles.h"
 #include "assets/test_sprite_tiles2.h"
 #include "assets/test_sprite3.h"
-#include "assets/test_tileset_2.h"
-#include "assets/test_tilemap.h"
+#include "assets/smwsheet.h"
+#include "assets/world1.h"
 #include "assets/slash_anim.h"
 #include "assets/test_font.h"
 /*
@@ -106,8 +110,8 @@ const unsigned char test_tileset[256*256] = {
 #include "assets/test_tileset.txt"
 };
 
-const unsigned char test_tilemap[32*32] = {
-#include "assets/test_tilemap.txt"
+const unsigned char world1[32*32] = {
+#include "assets/world1.txt"
 };
 
 */
@@ -244,11 +248,11 @@ bool init_sdl() {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     
     
-    app.window = SDL_CreateWindow("gen16x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, app.gs.ppu.screen_width, app.gs.ppu.screen_height, SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_RESIZABLE);
+    app.window = SDL_CreateWindow("gen16x", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, app.gs.ppu.screen_width*4, app.gs.ppu.screen_height*4, SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_RESIZABLE);
     
     //SDL_SetWindowResizable(g_window, SDL_TRUE);
     app.context = SDL_GL_CreateContext(app.window);
-    SDL_GL_SetSwapInterval(0);
+    SDL_GL_SetSwapInterval(1);
     
     //SDL_SetWindowFullscreen(g_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     
@@ -668,18 +672,18 @@ void handle_sdl_input() {
     player.moving = false;
     player.move.x = 0;
     player.move.y = 0;
-    if (kbstate[SDL_SCANCODE_UP]) {
-        //player.pos_y += 5.0f*speed_scale*dt;
-        player.rot = 0;
-        player.moving = true;
-        player.move.y += -1;
-    }
-    if (kbstate[SDL_SCANCODE_DOWN]) {
-        //player.pos_y -= 5.0f*speed_scale*dt;
-        player.rot = 180;
-        player.moving = true;
-        player.move.y += 1;
-    }
+    //if (kbstate[SDL_SCANCODE_UP]) {
+    //    //player.pos_y += 5.0f*speed_scale*dt;
+    //    player.rot = 0;
+    //    player.moving = true;
+    //    player.move.y += -1;
+    //}
+    //if (kbstate[SDL_SCANCODE_DOWN]) {
+    //    //player.pos_y -= 5.0f*speed_scale*dt;
+    //    player.rot = 180;
+    //    player.moving = true;
+    //    player.move.y += 1;
+    //}
 
     if (kbstate[SDL_SCANCODE_LEFT]) {
         //player.pos_x -= 5.0f*speed_scale*dt;
@@ -693,6 +697,13 @@ void handle_sdl_input() {
         player.move.x += 1;
         player.rot = 90;
         player.moving = true;
+    }
+
+    if (kbstate[SDL_SCANCODE_SPACE]) {
+        if (!player.jumping) {
+            player.velocity.y -= 3;
+            player.jumping = 3;
+        }
     }
 
 
@@ -725,9 +736,11 @@ int main() {
     g_app = &app;
 
     
-    player.pos = vec2(350.0f);
+    player.pos = vec2(10.0f, 984.0f);
+    player.velocity = vec2(0.0f);
     player.height = 0;
-    player.rot = 0;
+    player.dir = 1;
+    player.jumping = 0;
     
     init_ppu();
 
@@ -740,27 +753,27 @@ int main() {
     app.gs.scene.world.tile_layers[1].enabled = true;
     app.gs.scene.world.tile_layers[1].tilemap_width = 6;
     app.gs.scene.world.tile_layers[1].tilemap_height = 6;
-    app.gs.scene.world.tile_layers[1].rom_tileset_base = test_tileset_2_tiles;
-    app.gs.scene.world.tile_layers[1].rom_tileset_size = sizeof(test_tileset_2_tiles);
+    app.gs.scene.world.tile_layers[1].rom_tileset_base = smwsheet_tiles;
+    app.gs.scene.world.tile_layers[1].rom_tileset_size = sizeof(smwsheet_tiles);
 
-    app.gs.scene.world.tile_layers[1].rom_tilemap_base = test_map_layer0_tilemap;
-    app.gs.scene.world.tile_layers[1].rom_tilemap_size = sizeof(test_map_layer0_tilemap);
+    app.gs.scene.world.tile_layers[1].rom_tilemap_base = world1_layer0_tilemap;
+    app.gs.scene.world.tile_layers[1].rom_tilemap_size = sizeof(world1_layer0_tilemap);
 
-    app.gs.scene.world.tile_layers[1].rom_cgram_base = test_tileset_2_palette;
-    app.gs.scene.world.tile_layers[1].rom_cgram_size = sizeof(test_tileset_2_palette);
+    app.gs.scene.world.tile_layers[1].rom_cgram_base = smwsheet_palette;
+    app.gs.scene.world.tile_layers[1].rom_cgram_size = sizeof(smwsheet_palette);
 
     app.gs.scene.world.tile_layers[2].enabled = true;
     app.gs.scene.world.tile_layers[2].tilemap_width = 6;
     app.gs.scene.world.tile_layers[2].tilemap_height = 6;
 
-    app.gs.scene.world.tile_layers[2].rom_tileset_base = test_tileset_2_tiles;
-    app.gs.scene.world.tile_layers[2].rom_tileset_size = sizeof(test_tileset_2_tiles);
+    app.gs.scene.world.tile_layers[2].rom_tileset_base = smwsheet_tiles;
+    app.gs.scene.world.tile_layers[2].rom_tileset_size = sizeof(smwsheet_tiles);
 
-    app.gs.scene.world.tile_layers[2].rom_tilemap_base = test_map_layer1_tilemap;
-    app.gs.scene.world.tile_layers[2].rom_tilemap_size = sizeof(test_map_layer1_tilemap);
+    app.gs.scene.world.tile_layers[2].rom_tilemap_base = world1_layer1_tilemap;
+    app.gs.scene.world.tile_layers[2].rom_tilemap_size = sizeof(world1_layer1_tilemap);
 
-    app.gs.scene.world.tile_layers[2].rom_cgram_base = test_tileset_2_palette;
-    app.gs.scene.world.tile_layers[2].rom_cgram_size = sizeof(test_tileset_2_palette);
+    app.gs.scene.world.tile_layers[2].rom_cgram_base = smwsheet_palette;
+    app.gs.scene.world.tile_layers[2].rom_cgram_size = sizeof(smwsheet_palette);
 
 
 
@@ -835,183 +848,7 @@ int main() {
             handle_sdl_events();
             handle_sdl_input();
         #endif
-
-        
-        
-        static int frame_no = 0;
-        static double attack_time = 0;
-        frame_no++;
-
-        BoxCollider player_aabb;
-
-        player_aabb.origin = player.pos - vec2(4);
-        player_aabb.size = vec2(8);
-
-        app.gs.scene.sprites[0].origin = vec2(16, 30);
-
-
-        if (player.state != 2) {
-
-
-            if (player.moving) {
-
-                float m = mag(player.move);
-                normalize(player.move);
-
-
-                if (player.move.y < -0.5) {
-                    player.dir = 2;
-
-                }
-
-                if (player.move.y > 0.5) {
-                    player.dir = 0;
-                }
-
-
-                if (player.move.x < -0.5) {
-                    player.dir = 3;
-                }
-
-                if (player.move.x > 0.5) {
-                    player.dir = 1;
-                }
-
-                for (int c = 0; c < 3; c++) {
-                
-                    bool any_collision = false;
-                    bool was_collision = false;
-                
-                
-
-                    float fm = mag(player.forward);
-                    vec2 mv = player.move;
-                    if (fm > 0) {
-                        mv += player.forward;
-                        normalize(mv);
-                    }
-
-                    vec2 player_dxdy = 20*6.0f*(mv)*float(app.gs.delta_time)/3.0f;
-
-                    player_aabb.origin = player.pos - vec2(4) + player_dxdy;
-                    player_aabb.size = vec2(8);
-
-                    int n_collisions = 0;
-                    vec2 avg = 0;
-                    vec2 avg_n = 0;
-                    float closest_d = 999999999.9f;
-                    int num_polyons = sizeof(test_map_objects2)/sizeof(test_map_objects2[0]);
-                    for (int i = 0; i < num_polyons; i++) {
-                        ConvexCollider cc;
-                        cc.origin.x = (float)test_map_objects2[i][0];
-                        cc.origin.y = (float)test_map_objects2[i][1];
-                        cc.num_edges = test_map_objects2[i][2];
-                        for (int j = 0; j < 12; j++) {
-                            cc.edges[j].x = (float)test_map_objects2[i][3 + j*2];
-                            cc.edges[j].y = (float)test_map_objects2[i][3 + j*2 + 1];
-                        }
-
-                        if (collision_box_convex(player_aabb, cc)) {
-                            vec2 c;
-                            int ce = closest_point_to_convex(player.pos + player_dxdy, cc, &c);
-                            float d = distance(player.pos + player_dxdy, c);
-                            if (d < 4) {
-                                n_collisions++;
-                                avg += c;
-                                vec2 n = player.pos - c;// (cc.edges[(ce + 1)%cc.num_edges][1] - cc.edges[ce][1]);
-                                normalize(n);
-                                avg_n += n;
-                                //printf("Y Collision: %f %f!\n", closest_nx, closest_ny);
-                                
-                                was_collision = true;
-                                any_collision = true;
-
-                            }
-                        
-                        }
-
-                    }
-                    if (was_collision) {
-                        player_dxdy = vec2(0);
-                    }
-               
-                    player.pos += player_dxdy;
-                
-                    if (any_collision) {
-                        normalize(avg_n);
-                        player.forward = avg_n;//(closest_ny*player.move_y + -closest_nx*player.move_x);
-                    
-                        break;
-                    } else {
-                        player.forward = vec2(0);
-                    }
-                
-
-
-                }
-                //printf("Playerpos: %f, %f\n", player.pos_x, player.pos_y);
-                player.state = 1;
-            } else {
-                player.state = 0;
-
-            }
-
-        }
-
-
-        app.gs.scene.sprites[0].priority = 0;
-        player_aabb.origin = player.pos - vec2(8, 16);
-        player_aabb.size = vec2(16);
-
-        for (int i = 0; i < sizeof(test_map_objects3)/sizeof(test_map_objects3[0]); i++) {
-            ConvexCollider cc;
-            cc.origin.x =  (float)test_map_objects3[i][0];
-            cc.origin.y =  (float)test_map_objects3[i][1];
-            cc.num_edges = test_map_objects3[i][2];
-            for (int j = 0; j < 12; j++) {
-                cc.edges[j].x = (float)test_map_objects3[i][3 + j*2];
-                cc.edges[j].y = (float)test_map_objects3[i][3 + j*2 + 1];
-            }
-
-            if (collision_box_convex(player_aabb, cc)) {
-                app.gs.scene.sprites[0].priority = 1;
-                
-                break;
-            }
-
-        }
-
-
-        if (player.state == 0) {
-            app.gs.scene.sprites[0].current_frame = player.dir;
-        } else if (player.state == 1) {
-            app.gs.scene.sprites[0].current_frame = (6*(1 + player.dir) + int(app.current_time*12.0)%6);
-
-        } else if (player.state == 2) {
-            
-            int attack_frame = int(attack_time*10.0);
-
-            if (attack_frame >= 3) {
-                player.state = 0;
-                attack_time = 0;
-                //app.gs.ppu.layers[1].sprite_layer.sprites[1].flags = 0;
-            } else {
-                //app.gs.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(30 + attack_frame);
-                
-                int offsets[] = {-7, 10, 6};
-                app.gs.scene.sprites[0].current_frame = 30 + attack_frame;
-                app.gs.scene.sprites[0].origin.x = float(16 - offsets[attack_frame]);
-                //app.gs.ppu.layers[1].sprite_layer.sprites[0].x = offsets[attack_frame] + app.gs.ppu.screen_width/2 - 16;
-                //app.gs.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*(3*player.dir + attack_frame) + sizeof(test_sprite3_tiles)/32;
-                //app.gs.ppu.layers[1].sprite_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
-
-                attack_time += app.gs.delta_time;
-            }
-            
-
-        } 
-        
-
+            update_player_state(app);
 
         //float ay = player.height + 16;        
         //int sprite_x = 0*sin(frame_no/500.0f)*16.0f;
@@ -1071,7 +908,7 @@ int main() {
 
         app.gs.scene.sprites[0].pos = player.pos;
         
-        world_insert_entity(&app.gs.scene.world, sprite_ent, player.pos - player_aabb.size/2.0f, player.pos + player_aabb.size/2.0f);
+        world_insert_entity(&app.gs.scene.world, sprite_ent, player.pos - player.aabb.size/2.0f, player.pos + player.aabb.size/2.0f);
 
         
         
@@ -1088,14 +925,15 @@ int main() {
           app.gs.ppu.layers[SCENE_TILE_FOREGROUND_LAYER].tile_layer.flags &= ~GEN16X_FLAG_TRANSFORM;
         }
 
+
         app.gs.ppu.row_callback = (gen16x_row_callback_t)+[](gen16x_ppu* ppu, int row, void* user) {
           application_state& app = *(application_state*)user;
           float t = (float)app.gs.time;
 
           float persp_lerp = (1.0f + sinf((float)app.gs.time));
           float z = 100.0f/(100.0f*(1.0f - 0.5f*persp_lerp) + row * persp_lerp);
-          float ct = cos(0);
-          float st = sin(0);
+          float ct = cos(t);
+          float st = sin(t);
           ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.a   = int( 256.0* ct*z);// int(30.0 * sinf(0.0125f * (float)row));
           ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.a   = int( 256.0* ct*z);// int(30.0 * sinf(0.0125f * (float)row));
           ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.b   = int(-256.0* st*z);// int(30.0 * sinf(0.0125f * (float)row));
@@ -1108,6 +946,19 @@ int main() {
           ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.cx  = int(app.gs.scene.camera_pos.x);//int(1000.0 * sinf(0.125f * (float)row + 2.0f*app.gs.time));
           ppu->layers[SCENE_TILE_BACKGROUND_LAYER1].tile_layer.transform.cy  = int(app.gs.scene.camera_pos.y);//int(1000.0 * sinf(0.125f * (float)row + 2.0f*app.gs.time));
           ppu->layers[SCENE_TILE_FOREGROUND_LAYER ].tile_layer.transform.cy  = int(app.gs.scene.camera_pos.y);//int(1000.0 * sinf(0.125f * (float)row + 2.0f*app.gs.time));
+
+
+          for (int i = 0; i < 256; i++) {
+              if (app.gs.ppu.cgram32[i].color_i == 0x00000000 || app.gs.ppu.cgram32[i].a == 1) {
+                  ppu->cgram32[i].r = row;
+                  ppu->cgram32[i].g = 128 + 20;
+                  ppu->cgram32[i].b = 224 - row / 2;
+                  ppu->cgram32[i].a = 1;//(255 - row);
+              }
+          }
+
+
+
         };
 
         gen16x_ppu_render(&app.gs.ppu);
@@ -1150,4 +1001,192 @@ int main() {
         SDL_Quit();
     #endif
     return 0;
+}
+
+void update_player_state(application_state& app) {
+    static int frame_no = 0;
+    static double attack_time = 0;
+    frame_no++;
+
+    player.aabb.origin = player.pos - vec2(4);
+    player.aabb.size = vec2(8);
+
+    app.gs.scene.sprites[0].origin = vec2(16, 26);
+
+
+    player.pos.x += player.velocity.x * app.delta_time;
+    player.pos.y += player.velocity.y * app.delta_time;
+    player.velocity.y += 9.0 * app.delta_time;
+
+    if (player.state != 2) {
+
+
+        if (player.moving || player.velocity.x != 0 || player.velocity.y != 0) {
+
+            float m = mag(player.move);
+            normalize(player.move);
+
+
+            if (player.move.y < -0.5) {
+                player.dir = 2;
+
+            }
+
+            if (player.move.y > 0.5) {
+                player.dir = 0;
+            }
+
+
+            if (player.move.x < -0.5) {
+                player.dir = 3;
+            }
+
+            if (player.move.x > 0.5) {
+                player.dir = 1;
+            }
+
+            for (int c = 0; c < 3; c++) {
+
+                bool any_collision = false;
+                bool was_collision = false;
+
+
+
+                float fm = mag(player.forward);
+                vec2 mv = player.move + player.velocity;
+                if (fm > 0) {
+                    mv += player.forward;
+                    normalize(mv);
+                }
+
+                vec2 player_dxdy = 20 * 6.0f * (mv) * float(app.gs.delta_time) / 3.0f;
+
+                player.aabb.origin = player.pos - vec2(4) + player_dxdy;
+                player.aabb.size = vec2(8);
+
+                int n_collisions = 0;
+                vec2 avg = 0;
+                vec2 avg_n = 0;
+                float closest_d = 999999999.9f;
+                int num_polyons = sizeof(world1_objects2) / sizeof(world1_objects2[0]);
+                for (int i = 0; i < num_polyons; i++) {
+                    ConvexCollider cc;
+                    cc.origin.x = (float)world1_objects2[i][0];
+                    cc.origin.y = (float)world1_objects2[i][1];
+                    cc.num_edges = world1_objects2[i][2];
+                    for (int j = 0; j < 12; j++) {
+                        cc.edges[j].x = (float)world1_objects2[i][3 + j * 2];
+                        cc.edges[j].y = (float)world1_objects2[i][3 + j * 2 + 1];
+                    }
+
+                    if (collision_box_convex(player.aabb, cc)) {
+                        vec2 c;
+                        int ce = closest_point_to_convex(player.pos + player_dxdy, cc, &c);
+                        float d = distance(player.pos + player_dxdy, c);
+                        if (d < 4) {
+                            n_collisions++;
+                            avg += c;
+                            vec2 n = player.pos - c;
+                            //(cc.edges[(ce + 1)%cc.num_edges][1] - cc.edges[ce][1]);
+                            normalize(n);
+                            avg_n += n;
+                            //printf("Y Collision: %f %f!\n", closest_nx, closest_ny);
+
+                            was_collision = true;
+                            any_collision = true;
+
+                        }
+
+                    }
+
+                }
+                if (was_collision) {
+                    player_dxdy = vec2(0);
+                    player.velocity = vec2(0);
+                }
+
+                player.pos += player_dxdy;
+
+                if (any_collision) {
+                    normalize(avg_n);
+                    player.forward = avg_n;//(closest_ny*player.move_y + -closest_nx*player.move_x);
+                    if (avg_n.y < 0 && player.jumping) {
+                        player.jumping--;
+                    }
+
+                    break;
+                }
+                else {
+                    player.forward = vec2(0);
+                }
+
+
+
+            }
+            //printf("Playerpos: %f, %f\n", player.pos_x, player.pos_y);
+            player.state = 1;
+        }
+        else {
+            player.state = 0;
+
+        }
+
+    }
+
+
+    app.gs.scene.sprites[0].priority = 0;
+    player.aabb.origin = player.pos - vec2(8, 20);
+    player.aabb.size = vec2(16);
+
+    for (int i = 0; i < sizeof(world1_objects3) / sizeof(world1_objects3[0]); i++) {
+        ConvexCollider cc;
+        cc.origin.x = (float)world1_objects3[i][0];
+        cc.origin.y = (float)world1_objects3[i][1];
+        cc.num_edges = world1_objects3[i][2];
+        for (int j = 0; j < 12; j++) {
+            cc.edges[j].x = (float)world1_objects3[i][3 + j * 2];
+            cc.edges[j].y = (float)world1_objects3[i][3 + j * 2 + 1];
+        }
+
+        if (collision_box_convex(player.aabb, cc)) {
+            app.gs.scene.sprites[0].priority = 1;
+
+            break;
+        }
+
+    }
+
+
+    if (player.state == 0) {
+        app.gs.scene.sprites[0].current_frame = player.dir;
+    }
+    else if (player.state == 1) {
+        app.gs.scene.sprites[0].current_frame = (6 * (1 + player.dir) + int(app.current_time * 12.0) % 6);
+
+    }
+    else if (player.state == 2) {
+
+        int attack_frame = int(attack_time * 10.0);
+
+        if (attack_frame >= 3) {
+            player.state = 0;
+            attack_time = 0;
+            //app.gs.ppu.layers[1].sprite_layer.sprites[1].flags = 0;
+        }
+        else {
+            //app.gs.ppu.layers[1].sprite_layer.sprites[0].tile_index = 16*(30 + attack_frame);
+
+            int offsets[] = { -7, 10, 6 };
+            app.gs.scene.sprites[0].current_frame = 30 + attack_frame;
+            app.gs.scene.sprites[0].origin.x = float(16 - offsets[attack_frame]);
+            //app.gs.ppu.layers[1].sprite_layer.sprites[0].x = offsets[attack_frame] + app.gs.ppu.screen_width/2 - 16;
+            //app.gs.ppu.layers[1].sprite_layer.sprites[1].tile_index = 64*(3*player.dir + attack_frame) + sizeof(test_sprite3_tiles)/32;
+            //app.gs.ppu.layers[1].sprite_layer.sprites[1].flags = GEN16X_FLAG_SPRITE_ENABLED;
+
+            attack_time += app.gs.delta_time;
+        }
+
+
+    }
+
 }

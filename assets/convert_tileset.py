@@ -14,8 +14,10 @@ tiles = []
 palette = struct.unpack("<" + "L"*int(len(im.palette.palette)/4), im.palette.palette)
 
 def process_pallete(i):
-	if i != 0x00FF00FF:
+	if (i & 0x00FFFFFF) != 0x00FF00FF:
 		i = i | 0xFF000000
+	else:
+		i = 0x00000000
 	return i
 def pack_index(a, b):
 	return ((a&0xF) << 4) | (b & 0xF)
